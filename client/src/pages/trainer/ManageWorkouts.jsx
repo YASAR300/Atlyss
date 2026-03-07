@@ -235,16 +235,46 @@ export default function ManageWorkouts() {
                         <div className="editor-content">
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 32 }}>
                                 <div>
-                                    <div style={{ fontFamily: T.mono, fontSize: '0.52rem', color: T.acc, letterSpacing: '0.2em', textTransform: 'uppercase' }}>// editing plan</div>
-                                    <h2 style={{ fontFamily: T.disp, fontSize: '2.2rem', color: T.hi, letterSpacing: '0.04em' }}>Review: {editingPlan.member?.user?.name}</h2>
                                     <div style={{ fontFamily: T.mono, fontSize: '0.65rem', color: T.muted, display: 'flex', gap: 12, marginTop: 4 }}>
-                                        <span>Goal: {editingPlan.request?.fitnessGoal}</span>
-                                        <span>Experience: {editingPlan.request?.experienceLevel}</span>
-                                        <span>Days: {editingPlan.request?.daysPerWeek}</span>
+                                        <span>Goal: {editingPlan.request?.fitnessGoal || editingPlan.goal}</span>
+                                        <span>Experience: {editingPlan.request?.experienceLevel || editingPlan.difficulty}</span>
+                                        <span>Duration: {editingPlan.duration} Days</span>
                                     </div>
                                 </div>
                                 <button onClick={() => setEditingPlan(null)} style={{ background: 'none', border: 'none', color: T.muted, cursor: 'pointer' }}><XMarkIcon style={{ width: 28 }} /></button>
                             </div>
+
+                            {/* Member Request Context */}
+                            {editingPlan.request && (
+                                <div style={{ background: 'rgba(241,100,42,0.05)', border: `1px solid ${T.accBorder}`, borderRadius: 4, padding: 16, marginBottom: 32 }}>
+                                    <div style={{ fontFamily: T.mono, fontSize: '0.55rem', color: T.acc, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>// member request context (plan entries)</div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+                                        {[
+                                            ['Focus', editingPlan.request.targetFocus],
+                                            ['Intensity', editingPlan.request.intensity],
+                                            ['Days/Week', editingPlan.request.daysPerWeek],
+                                            ['Session Time', `${editingPlan.request.sessionTime}m`],
+                                        ].map(([l, v]) => (
+                                            <div key={l}>
+                                                <ModalLabel>{l}</ModalLabel>
+                                                <div style={{ fontFamily: T.mono, fontSize: '0.7rem', color: T.text }}>{v || '—'}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                                        <div>
+                                            <ModalLabel>Equipment Available</ModalLabel>
+                                            <div style={{ fontFamily: T.mono, fontSize: '0.7rem', color: T.text }}>{editingPlan.request.equipment?.join(', ') || 'No equipment specified'}</div>
+                                        </div>
+                                        <div>
+                                            <ModalLabel>Injuries / Restrictions</ModalLabel>
+                                            <div style={{ fontFamily: T.mono, fontSize: '0.7rem', color: editingPlan.request.injuries ? '#ff6060' : T.muted }}>
+                                                {editingPlan.request.injuries || 'None reported'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Exercises by Day */}
                             {[...Array(editingPlan.duration)].map((_, i) => {

@@ -239,7 +239,9 @@ export default function AdminDashboard() {
     }, [filters]);
 
     useEffect(() => {
-        const socket = io('http://localhost:5000');
+        // Use the same base URL as API for socket, stripping /api
+        const socketUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api').replace('/api', '');
+        const socket = io(socketUrl);
         socket.on('attendance_update', d => setLive(prev => [d, ...prev].slice(0, 8)));
         api.get('/attendance/live').then(r => setLive(r.data.attendance?.slice(0, 8) || [])).catch(() => { });
         return () => socket.disconnect();

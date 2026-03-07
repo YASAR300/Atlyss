@@ -6,6 +6,8 @@ import {
     ChevronLeftIcon, ChevronRightIcon,
     UserIcon, PhoneIcon, CalendarIcon,
     PlusIcon, ClipboardDocumentListIcon,
+    CheckCircleIcon, ClockIcon, ExclamationCircleIcon,
+    SparklesIcon, ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
 
@@ -286,6 +288,25 @@ export default function Members() {
             api.get(measEndpoint).then(r => setMeasHistory(r.data.measurements)).catch(() => { });
         } catch (err) { alert(err.response?.data?.message || 'Failed to save'); }
         finally { setSaving(false); }
+    };
+
+    const finalizeMemberPlan = async (planId) => {
+        if (!confirm('Finalize this plan? It will be activated for the member.')) return;
+        setSaving(true);
+        try {
+            await api.put(`/workouts/plan/${planId}/finalize`);
+            // Update local state to reflect the change
+            setSelectedMember(prev => {
+                if (!prev || !prev.member) return prev;
+                const updatedPlans = prev.member.workoutPlans.map(p =>
+                    p.id === planId ? { ...p, status: 'active' } : { ...p, status: 'completed' }
+                );
+                return { ...prev, member: { ...prev.member, workoutPlans: updatedPlans } };
+            });
+            alert('Plan finalized and activated!');
+        } catch (err) {
+            alert(err.response?.data?.message || 'Failed to finalize plan');
+        } finally { setSaving(false); }
     };
 
     const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -600,33 +621,82 @@ export default function Members() {
                                 ) : (
                                     /* Workout Plan tab */
                                     <div>
-                                        {selectedMember.member?.workoutPlans?.[0] ? (() => {
-                                            const plan = selectedMember.member.workoutPlans[0];
-                                            return (
-                                                <div>
-                                                    <div style={{ background: T.accDim, border: `1px solid ${T.accBorder}`, borderRadius: 4, padding: 16, marginBottom: 20 }}>
-                                                        <div style={{ fontFamily: T.disp, fontSize: '1.4rem', color: T.hi, marginBottom: 4 }}>{plan.name}</div>
-                                                        <div style={{ fontFamily: T.mono, fontSize: '0.65rem', color: T.text }}>Goal: {plan.goal} · Difficulty: {plan.difficulty}</div>
-                                                        <div style={{ fontFamily: T.mono, fontSize: '0.55rem', color: T.muted, marginTop: 6, textTransform: 'uppercase' }}>Current Active Routine</div>
-                                                    </div>
+                                        {selectedMember.member?.workoutPlans?.length > 0 ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                                                {selectedMember.member.workoutPlans.map((plan, pIdx) => (
+                                                    <div key={plan.id} style={{ border: `1px solid ${plan.status === 'active' ? T.greenBorder : T.border}`, background: plan.status === 'active' ? 'rgba(0,40,20,0.1)' : T.card, borderRadius: 6, padding: 20, position: 'relative', opacity: plan.status === 'completed' ? 0.5 : 1 }}>
 
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                                        {plan.exercises?.map((ex, i) => (
-                                                            <div key={ex.id} style={{ borderLeft: `2px solid ${T.borderMid}`, paddingLeft: 12, marginBottom: 4 }}>
-                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                    <span style={{ fontFamily: T.mono, fontSize: '0.7rem', color: T.hi, fontWeight: 700 }}>{ex.dayTitle}: {ex.name}</span>
-                                                                    <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.acc }}>{ex.sets} × {ex.reps}</span>
+                                                        {/* Status Badge */}
+                                                        <div style={{ position: 'absolute', top: 16, right: 16 }}>
+                                                            <span style={{ padding: '3px 9px', borderRadius: 2, fontFamily: T.mono, fontSize: '0.55rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', background: plan.status === 'active' ? T.greenDim : (plan.status === 'pending' ? T.amberDim : T.borderMid), border: `1px solid ${plan.status === 'active' ? T.greenBorder : (plan.status === 'pending' ? T.amberBorder : T.border)}`, color: plan.status === 'active' ? T.green : (plan.status === 'pending' ? T.amber : T.muted) }}>
+                                                                {plan.status}
+                                                            </span>
+                                                        </div>
+
+                                                        <div style={{ marginBottom: 16 }}>
+                                                            <div style={{ fontFamily: T.disp, fontSize: '1.6rem', color: T.hi, marginBottom: 4 }}>{plan.name}</div>
+                                                            <div style={{ fontFamily: T.mono, fontSize: '0.65rem', color: T.text }}>Goal: {plan.goal} · Difficulty: {plan.difficulty}</div>
+                                                            <div style={{ fontFamily: T.mono, fontSize: '0.58rem', color: T.muted, marginTop: 4 }}>Created: {fmtDate(plan.createdAt)}</div>
+                                                        </div>
+
+                                                        {/* Request Details (Collapsible/Brief) */}
+                                                        {plan.request && (
+                                                            <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 4, padding: 12, marginBottom: 16, border: `1px solid ${T.faint}` }}>
+                                                                <div style={{ fontFamily: T.mono, fontSize: '0.5rem', color: T.acc, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 8 }}>// plan entries (request)</div>
+                                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+                                                                    {[
+                                                                        ['Target Focus', plan.request.targetFocus],
+                                                                        ['Experience', plan.request.experienceLevel],
+                                                                        ['Days/Week', plan.request.daysPerWeek],
+                                                                        ['Intensity', plan.request.intensity],
+                                                                        ['Equipment', plan.request.equipment?.join(', ') || 'None'],
+                                                                        ['Injuries', plan.request.injuries || 'None'],
+                                                                    ].map(([label, val]) => (
+                                                                        <div key={label} style={{ display: 'flex', flexDirection: 'column' }}>
+                                                                            <span style={{ fontFamily: T.mono, fontSize: '0.5rem', color: T.muted, textTransform: 'uppercase' }}>{label}</span>
+                                                                            <span style={{ fontFamily: T.mono, fontSize: '0.65rem', color: T.text }}>{val}</span>
+                                                                        </div>
+                                                                    ))}
                                                                 </div>
-                                                                <div style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted, marginTop: 2 }}>{ex.targetMuscle} · Rest: {ex.restTime}s</div>
                                                             </div>
-                                                        ))}
+                                                        )}
+
+                                                        {/* Exercises Section */}
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                                            <div style={{ fontFamily: T.mono, fontSize: '0.5rem', color: T.muted, letterSpacing: '0.2em', textTransform: 'uppercase' }}>Exercises</div>
+                                                            {plan.exercises?.length > 0 ? (
+                                                                plan.exercises.map((ex, i) => (
+                                                                    <div key={ex.id} style={{ borderLeft: `2px solid ${T.borderMid}`, paddingLeft: 12, marginBottom: 4 }}>
+                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                            <span style={{ fontFamily: T.mono, fontSize: '0.75rem', color: T.hi, fontWeight: 700 }}>{ex.dayTitle}: {ex.name}</span>
+                                                                            <span style={{ fontFamily: T.mono, fontSize: '0.65rem', color: T.acc }}>{ex.sets} × {ex.reps}</span>
+                                                                        </div>
+                                                                        <div style={{ fontFamily: T.mono, fontSize: '0.62rem', color: T.muted, marginTop: 2 }}>{ex.targetMuscle} · Rest: {ex.restTime}s</div>
+                                                                    </div>
+                                                                ))
+                                                            ) : (
+                                                                <div style={{ fontFamily: T.mono, fontSize: '0.65rem', color: T.muted, fontStyle: 'italic' }}>No exercises defined</div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Actions */}
+                                                        {plan.status === 'pending' && (
+                                                            <div style={{ marginTop: 24, display: 'flex', gap: 12 }}>
+                                                                <BtnPrimary onClick={() => finalizeMemberPlan(plan.id)} disabled={saving} style={{ flex: 1, height: 40 }}>
+                                                                    {saving ? <ArrowPathIcon style={{ width: 16, animation: 'spin 1s linear infinite' }} /> : <><CheckCircleIcon style={{ width: 16 }} /> Finalize & Approve</>}
+                                                                </BtnPrimary>
+                                                                <BtnSecondary onClick={() => window.location.href = '/trainer/workouts'} style={{ flex: 1, height: 40 }}>
+                                                                    <PencilSquareIcon style={{ width: 14 }} /> Edit Exercises
+                                                                </BtnSecondary>
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                </div>
-                                            );
-                                        })() : (
-                                            <div style={{ textAlign: 'center', padding: '40px 0', background: T.card, border: `1px dashed ${T.border}`, borderRadius: 4 }}>
-                                                <ClipboardDocumentListIcon style={{ width: 32, color: T.faint, margin: '0 auto 10px' }} />
-                                                <div style={{ fontFamily: T.mono, fontSize: '0.7rem', color: T.muted }}>No active workout plan found</div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div style={{ textAlign: 'center', padding: '48px 0', background: T.card, border: `1px dashed ${T.border}`, borderRadius: 4 }}>
+                                                <ClipboardDocumentListIcon style={{ width: 36, color: T.faint, margin: '0 auto 12px' }} />
+                                                <div style={{ fontFamily: T.mono, fontSize: '0.75rem', color: T.muted }}>No workout plans found for this member</div>
                                             </div>
                                         )}
                                     </div>

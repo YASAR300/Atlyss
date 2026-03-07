@@ -15,9 +15,12 @@ const MEMBER_INCLUDE = {
             trainer: { include: { user: { select: { id: true, name: true } } } },
             measurements: { orderBy: { measuredAt: 'desc' }, take: 1 },
             workoutPlans: {
-                where: { status: 'active' },
-                include: { exercises: { orderBy: [{ day: 'asc' }, { order: 'asc' }] } },
-                take: 1
+                where: { OR: [{ status: 'active' }, { status: 'pending' }] },
+                include: {
+                    exercises: { orderBy: [{ day: 'asc' }, { order: 'asc' }] },
+                    request: true
+                },
+                orderBy: { createdAt: 'desc' }
             }
         }
     }
