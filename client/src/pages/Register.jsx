@@ -6,90 +6,100 @@ import logo from '../assets/logo.png';
 
 /* ─── Animated Pulse Bars (same as Login) ─── */
 const PulseCanvas = () => {
-    const canvasRef = useRef(null);
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-        let animId;
-        const bars = Array.from({ length: 28 }, (_, i) => ({
-            x: i,
-            h: 0.2 + Math.random() * 0.6,
-            speed: 0.01 + Math.random() * 0.025,
-            phase: Math.random() * Math.PI * 2,
-        }));
+  const canvasRef = useRef(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    let animId;
+    const bars = Array.from({ length: 28 }, (_, i) => ({
+      x: i,
+      h: 0.2 + Math.random() * 0.6,
+      speed: 0.01 + Math.random() * 0.025,
+      phase: Math.random() * Math.PI * 2,
+    }));
 
-        const draw = (t) => {
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
-            const W = canvas.width, H = canvas.height;
-            ctx.clearRect(0, 0, W, H);
+    const draw = (t) => {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
 
-            const bw = W / bars.length;
-            bars.forEach((b, i) => {
-                const amp = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(t * b.speed * 60 + b.phase));
-                const bh = amp * H * 0.72;
-                const y = H - bh;
-                const alpha = 0.18 + amp * 0.55;
+      const bw = W / bars.length;
+      bars.forEach((b, i) => {
+        const amp = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(t * b.speed * 60 + b.phase));
+        const bh = amp * H * 0.72;
+        const y = H - bh;
+        const alpha = 0.18 + amp * 0.55;
 
-                const grad = ctx.createLinearGradient(0, y, 0, H);
-                grad.addColorStop(0, `rgba(255,60,30,${alpha})`);
-                grad.addColorStop(0.5, `rgba(255,120,10,${alpha * 0.7})`);
-                grad.addColorStop(1, `rgba(255,60,30,0.04)`);
+        const grad = ctx.createLinearGradient(0, y, 0, H);
+        grad.addColorStop(0, `rgba(255,60,30,${alpha})`);
+        grad.addColorStop(0.5, `rgba(255,120,10,${alpha * 0.7})`);
+        grad.addColorStop(1, `rgba(255,60,30,0.04)`);
 
-                ctx.fillStyle = grad;
-                ctx.beginPath();
-                ctx.roundRect(i * bw + bw * 0.18, y, bw * 0.64, bh, [3, 3, 0, 0]);
-                ctx.fill();
-            });
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.roundRect(i * bw + bw * 0.18, y, bw * 0.64, bh, [3, 3, 0, 0]);
+        ctx.fill();
+      });
 
-            const glowGrad = ctx.createLinearGradient(0, 0, W, 0);
-            glowGrad.addColorStop(0, 'transparent');
-            glowGrad.addColorStop(0.3, 'rgba(255,80,20,0.4)');
-            glowGrad.addColorStop(0.7, 'rgba(255,140,0,0.35)');
-            glowGrad.addColorStop(1, 'transparent');
-            ctx.strokeStyle = glowGrad;
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(0, 2);
-            ctx.lineTo(W, 2);
-            ctx.stroke();
+      const glowGrad = ctx.createLinearGradient(0, 0, W, 0);
+      glowGrad.addColorStop(0, 'transparent');
+      glowGrad.addColorStop(0.3, 'rgba(255,80,20,0.4)');
+      glowGrad.addColorStop(0.7, 'rgba(255,140,0,0.35)');
+      glowGrad.addColorStop(1, 'transparent');
+      ctx.strokeStyle = glowGrad;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(0, 2);
+      ctx.lineTo(W, 2);
+      ctx.stroke();
 
-            animId = requestAnimationFrame(draw);
-        };
+      animId = requestAnimationFrame(draw);
+    };
 
-        animId = requestAnimationFrame(draw);
-        return () => cancelAnimationFrame(animId);
-    }, []);
+    animId = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(animId);
+  }, []);
 
-    return <canvas ref={canvasRef} className="w-full h-full" style={{ display: 'block' }} />;
+  return <canvas ref={canvasRef} className="w-full h-full" style={{ display: 'block' }} />;
 };
 
 /* ─── Main Register Component ─── */
 const Register = () => {
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [focused, setFocused] = useState(null);
-    const [mounted, setMounted] = useState(false);
-    const { register } = useAuth();
-    const navigate = useNavigate();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [focused, setFocused] = useState(null);
+  const [mounted, setMounted] = useState(false);
+  const { register, user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
 
-    useEffect(() => { setTimeout(() => setMounted(true), 60); }, []);
+  // ── Already logged in? Redirect to dashboard ──
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate(`/dashboard/${user.role}`, { replace: true });
+    }
+  }, [user, authLoading, navigate]);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!name || !email || !password) { toast.error('Fill in all fields'); return; }
-        setLoading(true);
-        try {
-            const user = await register({ name, email, password, role: 'admin' });
-            navigate(`/dashboard/${user.role}`);
-        } catch { /* handled in AuthContext */ } finally { setLoading(false); }
-    };
+  useEffect(() => { setTimeout(() => setMounted(true), 60); }, []);
 
-    return (
-        <>
-            <style>{`
+  // Show nothing while auth is being checked
+  if (authLoading) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!name || !email || !password) { toast.error('Fill in all fields'); return; }
+    setLoading(true);
+    try {
+      const user = await register({ name, email, password, role: 'admin' });
+      navigate(`/dashboard/${user.role}`);
+    } catch { /* handled in AuthContext */ } finally { setLoading(false); }
+  };
+
+  return (
+    <>
+      <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -506,161 +516,161 @@ const Register = () => {
         .pg-badge-member  { border-color: rgba(255,255,255,0.1);  color: rgba(255,255,255,0.35); background: rgba(255,255,255,0.03); }
       `}</style>
 
-            <div className="pg-root">
+      <div className="pg-root">
 
-                {/* ══ LEFT PANEL ══ */}
-                <div className="pg-left">
-                    <div className="pg-left-bg" />
-                    <div className="pg-left-grid" />
-                    <div className="pg-left-vignette" />
+        {/* ══ LEFT PANEL ══ */}
+        <div className="pg-left">
+          <div className="pg-left-bg" />
+          <div className="pg-left-grid" />
+          <div className="pg-left-vignette" />
 
-                    <div className="pg-badge-row">
-                        <span className="pg-badge pg-badge-admin">Admin</span>
-                        <span className="pg-badge pg-badge-trainer">Trainer</span>
-                        <span className="pg-badge pg-badge-member">Member</span>
-                    </div>
+          <div className="pg-badge-row">
+            <span className="pg-badge pg-badge-admin">Admin</span>
+            <span className="pg-badge pg-badge-trainer">Trainer</span>
+            <span className="pg-badge pg-badge-member">Member</span>
+          </div>
 
-                    <div className="pg-left-canvas">
-                        <PulseCanvas />
-                    </div>
+          <div className="pg-left-canvas">
+            <PulseCanvas />
+          </div>
 
-                    <div className={`pg-left-content ${mounted ? 'visible' : ''}`}>
-                        <div className="pg-big-text">
-                            TAKE<br />
-                            FULL<br />
-                            <span>CONTROL</span>
-                        </div>
-                        <div className="pg-accent-line" />
-                        <p className="pg-tagline">
-                            Admin access.<br />
-                            Complete oversight.<br />
-                            Built for leaders.
-                        </p>
-                        <div className="pg-perks">
-                            {[
-                                'Manage members & trainers',
-                                'Full class scheduling control',
-                                'Revenue & analytics dashboard',
-                                'System-wide configuration',
-                            ].map((perk) => (
-                                <div key={perk} className="pg-perk">
-                                    <div className="pg-perk-dot" />
-                                    <span className="pg-perk-text">{perk}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* ══ RIGHT PANEL ══ */}
-                <div className="pg-right">
-                    <div className="pg-corner pg-corner-tl" />
-                    <div className="pg-corner pg-corner-br" />
-
-                    <div className={`pg-form-wrap ${mounted ? 'visible' : ''}`}>
-
-                        {/* Logo */}
-                        <div className="pg-logo-row">
-                            <div className="pg-logo-icon">
-                                <img src={logo} alt="Atlyss" />
-                            </div>
-                            <div>
-                                <div className="pg-logo-name">Atlyss</div>
-                                <div className="pg-logo-sub">Smart Gym Management</div>
-                            </div>
-                        </div>
-
-                        {/* Admin badge pill */}
-                        <div className="pg-admin-badge">
-                            <div className="pg-admin-badge-dot" />
-                            Admin Registration
-                        </div>
-
-                        <h1 className="pg-heading">Create Account</h1>
-                        <p className="pg-subhead">Set up your primary admin account</p>
-
-                        <form onSubmit={handleSubmit} autoComplete="off">
-
-                            {/* Full Name */}
-                            <div className={`pg-field ${focused === 'name' ? 'focused' : ''}`}>
-                                <label className="pg-label">Full Name</label>
-                                <div className="pg-input-wrap">
-                                    <svg className="pg-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                                        <circle cx="12" cy="7" r="4" />
-                                    </svg>
-                                    <input
-                                        type="text"
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                        onFocus={() => setFocused('name')}
-                                        onBlur={() => setFocused(null)}
-                                        placeholder="Admin Name"
-                                        className="pg-input"
-                                        autoComplete="name"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Email */}
-                            <div className={`pg-field ${focused === 'email' ? 'focused' : ''}`}>
-                                <label className="pg-label">Email Address</label>
-                                <div className="pg-input-wrap">
-                                    <svg className="pg-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                                        <polyline points="22,6 12,13 2,6" />
-                                    </svg>
-                                    <input
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        onFocus={() => setFocused('email')}
-                                        onBlur={() => setFocused(null)}
-                                        placeholder="admin@atlyss.com"
-                                        className="pg-input"
-                                        autoComplete="email"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Password */}
-                            <div className={`pg-field ${focused === 'password' ? 'focused' : ''}`}>
-                                <label className="pg-label">Password</label>
-                                <div className="pg-input-wrap">
-                                    <svg className="pg-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                    </svg>
-                                    <input
-                                        type="password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        onFocus={() => setFocused('password')}
-                                        onBlur={() => setFocused(null)}
-                                        placeholder="••••••••"
-                                        className="pg-input"
-                                        autoComplete="new-password"
-                                    />
-                                </div>
-                            </div>
-
-                            <button type="submit" disabled={loading} className="pg-submit">
-                                {loading
-                                    ? <><span className="pg-spinner" />Creating Account...</>
-                                    : 'Register Admin Account →'
-                                }
-                            </button>
-                        </form>
-
-                        <p className="pg-footer">
-                            Already have an account?{' '}
-                            <Link to="/login">Sign in</Link>
-                        </p>
-                    </div>
-                </div>
+          <div className={`pg-left-content ${mounted ? 'visible' : ''}`}>
+            <div className="pg-big-text">
+              TAKE<br />
+              FULL<br />
+              <span>CONTROL</span>
             </div>
-        </>
-    );
+            <div className="pg-accent-line" />
+            <p className="pg-tagline">
+              Admin access.<br />
+              Complete oversight.<br />
+              Built for leaders.
+            </p>
+            <div className="pg-perks">
+              {[
+                'Manage members & trainers',
+                'Full class scheduling control',
+                'Revenue & analytics dashboard',
+                'System-wide configuration',
+              ].map((perk) => (
+                <div key={perk} className="pg-perk">
+                  <div className="pg-perk-dot" />
+                  <span className="pg-perk-text">{perk}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ══ RIGHT PANEL ══ */}
+        <div className="pg-right">
+          <div className="pg-corner pg-corner-tl" />
+          <div className="pg-corner pg-corner-br" />
+
+          <div className={`pg-form-wrap ${mounted ? 'visible' : ''}`}>
+
+            {/* Logo */}
+            <div className="pg-logo-row">
+              <div className="pg-logo-icon">
+                <img src={logo} alt="Atlyss" />
+              </div>
+              <div>
+                <div className="pg-logo-name">Atlyss</div>
+                <div className="pg-logo-sub">Smart Gym Management</div>
+              </div>
+            </div>
+
+            {/* Admin badge pill */}
+            <div className="pg-admin-badge">
+              <div className="pg-admin-badge-dot" />
+              Admin Registration
+            </div>
+
+            <h1 className="pg-heading">Create Account</h1>
+            <p className="pg-subhead">Set up your primary admin account</p>
+
+            <form onSubmit={handleSubmit} autoComplete="off">
+
+              {/* Full Name */}
+              <div className={`pg-field ${focused === 'name' ? 'focused' : ''}`}>
+                <label className="pg-label">Full Name</label>
+                <div className="pg-input-wrap">
+                  <svg className="pg-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onFocus={() => setFocused('name')}
+                    onBlur={() => setFocused(null)}
+                    placeholder="Admin Name"
+                    className="pg-input"
+                    autoComplete="name"
+                  />
+                </div>
+              </div>
+
+              {/* Email */}
+              <div className={`pg-field ${focused === 'email' ? 'focused' : ''}`}>
+                <label className="pg-label">Email Address</label>
+                <div className="pg-input-wrap">
+                  <svg className="pg-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onFocus={() => setFocused('email')}
+                    onBlur={() => setFocused(null)}
+                    placeholder="admin@atlyss.com"
+                    className="pg-input"
+                    autoComplete="email"
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div className={`pg-field ${focused === 'password' ? 'focused' : ''}`}>
+                <label className="pg-label">Password</label>
+                <div className="pg-input-wrap">
+                  <svg className="pg-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onFocus={() => setFocused('password')}
+                    onBlur={() => setFocused(null)}
+                    placeholder="••••••••"
+                    className="pg-input"
+                    autoComplete="new-password"
+                  />
+                </div>
+              </div>
+
+              <button type="submit" disabled={loading} className="pg-submit">
+                {loading
+                  ? <><span className="pg-spinner" />Creating Account...</>
+                  : 'Register Admin Account →'
+                }
+              </button>
+            </form>
+
+            <p className="pg-footer">
+              Already have an account?{' '}
+              <Link to="/login">Sign in</Link>
+            </p>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 };
 
 export default Register;

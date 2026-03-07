@@ -97,12 +97,22 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(null);
   const [mounted, setMounted] = useState(false);
-  const { login } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  // ── Already logged in? Redirect to dashboard ──
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate(`/dashboard/${user.role}`, { replace: true });
+    }
+  }, [user, authLoading, navigate]);
 
   useEffect(() => {
     setTimeout(() => setMounted(true), 60);
   }, []);
+
+  // Show nothing while auth is being checked
+  if (authLoading) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
