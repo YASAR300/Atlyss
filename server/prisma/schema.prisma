@@ -4,8 +4,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL")
 }
 
 enum Role {
@@ -26,30 +27,118 @@ model User {
 }
 
 model Member {
-  id             Int           @id @default(autoincrement())
-  userId         Int           @unique
-  age            Int           @default(25)
-  height         Float         @default(170)
-  weight         Float         @default(70)
-  fitnessGoal    String        @default("weight_loss")
-  membershipType String        @default("basic")
-  joinDate       DateTime      @default(now())
-  lastAttendance DateTime?
-  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workoutPlans   WorkoutPlan[]
-  attendance     Attendance[]
+  id               Int                @id @default(autoincrement())
+  userId           Int                @unique
+  memberNo         String?            // Unique member number, set on create
+
+  // Basic profile
+  age              Int                @default(25)
+  gender           String?
+  dob              DateTime?
+  mobile           String?
+  address          String?
+  occupation       String?
+
+  // Fitness
+  height           Float              @default(170)
+  weight           Float              @default(70)
+  fitnessGoal      String             @default("weight_loss")
+
+  // Membership
+  membershipType   String             @default("basic")
+  membershipPackage String?           // e.g. "3_month", "6_month", "1_year"
+  membershipAmount Float?
+  joinDate         DateTime           @default(now())
+  membershipDueDate DateTime?
+  sessionTime      String?            // "morning" | "evening" | "flexible"
+
+  // Guardian / Emergency Contact
+  guardianName     String?
+  guardianRelation String?
+  guardianMobile   String?
+
+  lastAttendance   DateTime?
+  trainerId        Int?
+
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trainer          Trainer?           @relation(fields: [trainerId], references: [id], onDelete: SetNull)
+  workoutPlans     WorkoutPlan[]
+  attendance       Attendance[]
+  measurements     BodyMeasurement[]
 
   @@index([fitnessGoal])
   @@index([membershipType])
+  @@index([memberNo])
+}
+
+model BodyMeasurement {
+  id               Int      @id @default(autoincrement())
+  memberId         Int
+  measuredAt       DateTime @default(now())
+  recordedBy       Int?     // trainer userId who recorded it
+  notes            String?
+
+  // Vitals
+  weight           Float?
+  height           Float?
+
+  // Circumferences (cm)
+  neck             Float?
+  shoulder         Float?
+  chest            Float?   // normal chest
+  upperArm         Float?
+  forearm          Float?
+  wrist            Float?
+  upperAbdomen     Float?
+  waist            Float?
+  lowerAbdomen     Float?
+  hips             Float?
+  thigh            Float?
+  calf             Float?
+  ankle            Float?
+
+  // BCA Report
+  bodyFat          Float?   // B.F %
+  visceralFat      Float?   // V.F
+  restingMetabolism Float?  // R.M (kcal)
+  bmi              Float?   // B.M.I
+  biologicalAge    Int?     // B.A
+
+  member           Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@index([measuredAt])
 }
 
 model Trainer {
-  id             Int     @id @default(autoincrement())
-  userId         Int     @unique
-  specialization String  @default("General Fitness")
-  experience     Int     @default(1)
-  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  classes        Class[]
+  id               Int      @id @default(autoincrement())
+  userId           Int      @unique
+
+  // Profile
+  photo            String?  // base64 or URL
+  mobile           String?
+  gender           String?
+  address          String?
+  weight           Float?
+  height           Float?
+
+  // Professional
+  specialization   String   @default("General Fitness")
+  specializations  String[] @default([])
+  trainerType      String   @default("general") // personal | general | common
+  experience       Int      @default(1)
+  salary           Float?
+  gymJoinDate      DateTime?
+  successRate      Float?   // percentage
+
+  // Certifications & Journey
+  certificates     String[] @default([])
+  fitnessJourney   String?
+  termsConditions  String?
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  members          Member[]
+  classes          Class[]
 }
 
 model Exercise {
