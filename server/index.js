@@ -14,20 +14,21 @@ const attendanceRoutes = require('./src/routes/attendance');
 const app = express();
 const httpServer = http.createServer(app);
 
-// Allowed frontend origins (local + production)
+// Allowed frontend origins (local + production) — strip trailing slashes
 const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
   process.env.CLIENT_URL,
-].filter(Boolean);
+].filter(Boolean).map(o => o.replace(/\/+$/, ''));
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (curl, mobile apps) or matching origins
-    if (!origin || ALLOWED_ORIGINS.some(o => origin.startsWith(o))) {
+    const normalizedOrigin = origin ? origin.replace(/\/+$/, '') : origin;
+    if (!normalizedOrigin || ALLOWED_ORIGINS.includes(normalizedOrigin)) {
       callback(null, true);
     } else {
+      console.warn(`CORS blocked: ${origin}`);
       callback(new Error(`CORS blocked: ${origin}`));
     }
   },
