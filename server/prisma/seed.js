@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
-    console.log('🌱 Seeding FitCore AI database...');
+    console.log('🌱 Seeding Atlyss database...');
 
     // Clear existing data (order matters for FK constraints)
     await prisma.attendance.deleteMany();
@@ -24,7 +24,7 @@ async function main() {
     const admin = await prisma.user.create({
         data: {
             name: 'Alex Admin',
-            email: 'admin@fitcore.com',
+            email: 'admin@atlyss.com',
             password: adminPass,
             role: 'admin',
         }
@@ -34,7 +34,7 @@ async function main() {
     const trainer1 = await prisma.user.create({
         data: {
             name: 'Jake Trainer',
-            email: 'jake@fitcore.com',
+            email: 'jake@atlyss.com',
             password: trainerPass,
             role: 'trainer',
             trainer: {
@@ -47,7 +47,7 @@ async function main() {
     const trainer2 = await prisma.user.create({
         data: {
             name: 'Sara Fitness',
-            email: 'sara@fitcore.com',
+            email: 'sara@atlyss.com',
             password: trainerPass,
             role: 'trainer',
             trainer: {
@@ -59,11 +59,11 @@ async function main() {
 
     // Members
     const membersData = [
-        { name: 'John Doe', email: 'john@fitcore.com', age: 28, height: 178, weight: 85, fitnessGoal: 'weight_loss', membershipType: 'premium' },
-        { name: 'Emily Rose', email: 'emily@fitcore.com', age: 24, height: 163, weight: 58, fitnessGoal: 'muscle_gain', membershipType: 'basic' },
-        { name: 'Mike Stone', email: 'mike@fitcore.com', age: 32, height: 182, weight: 95, fitnessGoal: 'muscle_gain', membershipType: 'vip' },
-        { name: 'Priya Patel', email: 'priya@fitcore.com', age: 26, height: 160, weight: 55, fitnessGoal: 'endurance', membershipType: 'basic' },
-        { name: 'Carlos Gym', email: 'carlos@fitcore.com', age: 30, height: 175, weight: 78, fitnessGoal: 'weight_loss', membershipType: 'premium' },
+        { name: 'John Doe', email: 'john@atlyss.com', age: 28, height: 178, weight: 85, fitnessGoal: 'weight_loss', membershipType: 'premium' },
+        { name: 'Emily Rose', email: 'emily@atlyss.com', age: 24, height: 163, weight: 58, fitnessGoal: 'muscle_gain', membershipType: 'basic' },
+        { name: 'Mike Stone', email: 'mike@atlyss.com', age: 32, height: 182, weight: 95, fitnessGoal: 'muscle_gain', membershipType: 'vip' },
+        { name: 'Priya Patel', email: 'priya@atlyss.com', age: 26, height: 160, weight: 55, fitnessGoal: 'endurance', membershipType: 'basic' },
+        { name: 'Carlos Gym', email: 'carlos@atlyss.com', age: 30, height: 175, weight: 78, fitnessGoal: 'weight_loss', membershipType: 'premium' },
     ];
 
     const createdMembers = [];
@@ -158,9 +158,9 @@ async function main() {
     console.log('✅ Sample attendance created');
     console.log('\n🎉 Seed complete!');
     console.log('\n📋 Login credentials:');
-    console.log('   Admin:   admin@fitcore.com    / Admin@123');
-    console.log('   Trainer: jake@fitcore.com     / Trainer@123');
-    console.log('   Member:  john@fitcore.com     / Member@123');
+    console.log('   Admin:   admin@atlyss.com     / Admin@123');
+    console.log('   Trainer: jake@atlyss.com      / Trainer@123');
+    console.log('   Member:  john@atlyss.com      / Member@123');
 }
 
 main()

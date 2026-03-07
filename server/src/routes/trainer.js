@@ -7,48 +7,22 @@ const requireRole = require('../middleware/roleMiddleware');
 router.use(verifyToken);
 router.use(requireRole('trainer', 'admin'));
 
-// GET /api/trainer/members — members in this trainer's classes
+// Helper: parse float safely
+const toF = v => v !== undefined && v !== '' && v !== null ? parseFloat(v) : null;
+const toI = v => v !== undefined && v !== '' && v !== null ? parseInt(v) : null;
+
+// GET /api/trainer/members — assigned members (full profile)
 router.get('/members', async (req, res) => {
     try {
-        const trainerId = req.user.id;
-
-        // Find the trainer profile
-        const trainerProfile = await prisma.trainer.findUnique({ where: { userId: trainerId } });
-        if (!trainerProfile) return res.status(404).json({ message: 'Trainer profile not found' });
-
-        // Get classes by this trainer
-        const classes = await prisma.class.findMany({
-            where: { trainerId: trainerProfile.id },
+        const trainer = await prisma.trainer.findUnique({ where: { userId: req.user.id } });
+        if (!trainer) return res.status(404).json({ message: 'Trainer not found' });
+        const members = await prisma.member.findMany({
+            where: { trainerId: trainer.id },
             include: {
-                attendance: {
-                    include: {
-                        member: {
-                            include: { user: { select: { id: true, name: true, email: true } } }
-                        }
-                    }
-                }
+                user: { select: { id: true, name: true, email: true } },
+                measurements: { orderBy: { measuredAt: 'desc' }, take: 1 }
             }
         });
-
-        // Collect unique members
-        const memberMap = new Map();
-        classes.forEach(cls => {
-            cls.attendance.forEach(att => {
-                if (!memberMap.has(att.member.id)) {
-                    memberMap.set(att.member.id, att.member);
-                }
-            });
-        });
-
-        // If no members via classes, return all members (for demo purposes)
-        let members = Array.from(memberMap.values());
-        if (members.length === 0) {
-            const allMembers = await prisma.member.findMany({
-                include: { user: { select: { id: true, name: true, email: true } } }
-            });
-            members = allMembers;
-        }
-
         res.json({ members });
     } catch (err) {
         console.error('Trainer members error:', err);
@@ -56,12 +30,128 @@ router.get('/members', async (req, res) => {
     }
 });
 
+// GET /api/trainer/members/:memberId — single member full detail
+router.get('/members/:memberId', async (req, res) => {
+    try {
+        const member = await prisma.member.findUnique({
+            where: { id: parseInt(req.params.memberId) },
+            include: {
+                user: { select: { id: true, name: true, email: true } },
+                measurements: { orderBy: { measuredAt: 'desc' } }
+            }
+        });
+        if (!member) return res.status(404).json({ message: 'Member not found' });
+        res.json({ member });
+    } catch (err) {
+        res.status(500).json({ message: 'Failed to fetch member' });
+    }
+});
+
+// GET /api/trainer/members/:memberId/measurements
+router.get('/members/:memberId/measurements', async (req, res) => {
+    try {
+        const measurements = await prisma.bodyMeasurement.findMany({
+            where: { memberId: parseInt(req.params.memberId) },
+            orderBy: { measuredAt: 'desc' }
+        });
+        res.json({ measurements });
+    } catch (err) {
+        res.status(500).json({ message: 'Failed to fetch measurements' });
+    }
+});
+
+// POST /api/trainer/members/:memberId/measurements
+router.post('/members/:memberId/measurements', async (req, res) => {
+    try {
+        const memberId = parseInt(req.params.memberId);
+        const member = await prisma.member.findUnique({ where: { id: memberId } });
+        if (!member) return res.status(404).json({ message: 'Member not found' });
+
+        const {
+            measuredAt, notes,
+            weight, height,
+            neck, shoulder, chest, upperArm, forearm, wrist,
+            upperAbdomen, waist, lowerAbdomen, hips, thigh, calf, ankle,
+            bodyFat, visceralFat, restingMetabolism, bmi, biologicalAge,
+        } = req.body;
+
+        const measurement = await prisma.bodyMeasurement.create({
+            data: {
+                memberId,
+                recordedBy: req.user.id,
+                measuredAt: measuredAt ? new Date(measuredAt) : new Date(),
+                notes: notes || null,
+                weight: toF(weight), height: toF(height),
+                neck: toF(neck), shoulder: toF(shoulder), chest: toF(chest),
+                upperArm: toF(upperArm), forearm: toF(forearm), wrist: toF(wrist),
+                upperAbdomen: toF(upperAbdomen), waist: toF(waist), lowerAbdomen: toF(lowerAbdomen),
+                hips: toF(hips), thigh: toF(thigh), calf: toF(calf), ankle: toF(ankle),
+                bodyFat: toF(bodyFat), visceralFat: toF(visceralFat),
+                restingMetabolism: toF(restingMetabolism), bmi: toF(bmi), biologicalAge: toI(biologicalAge),
+            }
+        });
+        res.status(201).json({ measurement });
+    } catch (err) {
+        console.error('Measurement error:', err);
+        res.status(500).json({ message: 'Failed to save measurement' });
+    }
+});
+
+// GET /api/trainer/profile
+router.get('/profile', async (req, res) => {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: req.user.id },
+            include: { trainer: true }
+        });
+        if (!user) return res.status(404).json({ message: 'Not found' });
+        const { password, ...clean } = user;
+        res.json(clean);
+    } catch (err) {
+        res.status(500).json({ message: 'Failed to fetch profile' });
+    }
+});
+
+// PUT /api/trainer/profile — trainer updates own profile
+router.put('/profile', async (req, res) => {
+    try {
+        const {
+            mobile, gender, address, weight, height,
+            specialization, specializations, trainerType,
+            salary, gymJoinDate, successRate,
+            certificates, fitnessJourney, termsConditions, photo,
+        } = req.body;
+
+        await prisma.trainer.update({
+            where: { userId: req.user.id },
+            data: {
+                photo: photo ?? undefined,
+                mobile: mobile ?? undefined,
+                gender: gender ?? undefined,
+                address: address ?? undefined,
+                weight: weight ? parseFloat(weight) : undefined,
+                height: height ? parseFloat(height) : undefined,
+                specialization: specialization ?? undefined,
+                specializations: Array.isArray(specializations) ? specializations : undefined,
+                trainerType: trainerType ?? undefined,
+                gymJoinDate: gymJoinDate ? new Date(gymJoinDate) : undefined,
+                successRate: successRate ? parseFloat(successRate) : undefined,
+                certificates: Array.isArray(certificates) ? certificates : undefined,
+                fitnessJourney: fitnessJourney ?? undefined,
+                termsConditions: termsConditions ?? undefined,
+            }
+        });
+        res.json({ message: 'Profile updated' });
+    } catch (err) {
+        res.status(500).json({ message: 'Failed to update profile' });
+    }
+});
+
 // GET /api/trainer/workouts/:memberId
 router.get('/workouts/:memberId', async (req, res) => {
     try {
-        const memberId = parseInt(req.params.memberId);
         const plans = await prisma.workoutPlan.findMany({
-            where: { memberId },
+            where: { memberId: parseInt(req.params.memberId) },
             include: { exercise: true },
             orderBy: { day: 'asc' }
         });
@@ -71,29 +161,17 @@ router.get('/workouts/:memberId', async (req, res) => {
     }
 });
 
-// POST /api/trainer/workouts — create workout plan entries
+// POST /api/trainer/workouts
 router.post('/workouts', async (req, res) => {
     try {
         const { memberId, exerciseId, day, sets, reps } = req.body;
-
-        if (!memberId || !exerciseId || !day) {
-            return res.status(400).json({ message: 'memberId, exerciseId, and day are required' });
-        }
-
+        if (!memberId || !exerciseId || !day) return res.status(400).json({ message: 'memberId, exerciseId, and day are required' });
         const plan = await prisma.workoutPlan.create({
-            data: {
-                memberId: parseInt(memberId),
-                exerciseId: parseInt(exerciseId),
-                day,
-                sets: parseInt(sets) || 3,
-                reps: parseInt(reps) || 12,
-            },
+            data: { memberId: parseInt(memberId), exerciseId: parseInt(exerciseId), day, sets: parseInt(sets) || 3, reps: parseInt(reps) || 12 },
             include: { exercise: true }
         });
-
         res.status(201).json({ plan });
     } catch (err) {
-        console.error('Create workout error:', err);
         res.status(500).json({ message: 'Failed to create workout plan' });
     }
 });
@@ -108,7 +186,7 @@ router.delete('/workouts/:id', async (req, res) => {
     }
 });
 
-// GET /api/trainer/exercises — list all exercises for plan creation
+// GET /api/trainer/exercises
 router.get('/exercises', async (req, res) => {
     try {
         const exercises = await prisma.exercise.findMany({ orderBy: { muscleGroup: 'asc' } });

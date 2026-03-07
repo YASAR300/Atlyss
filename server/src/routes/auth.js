@@ -21,34 +21,14 @@ router.post('/register', async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 12);
 
-        // Create user with role-specific profile
+        // Create user with admin role (public registration is only for admins)
         const user = await prisma.user.create({
             data: {
                 name,
                 email,
                 password: hashedPassword,
-                role: role || 'member',
-                ...(role === 'member' || !role ? {
-                    member: {
-                        create: {
-                            age: age || 25,
-                            height: height || 170,
-                            weight: weight || 70,
-                            fitnessGoal: fitnessGoal || 'weight_loss',
-                            membershipType: membershipType || 'basic',
-                        }
-                    }
-                } : {}),
-                ...(role === 'trainer' ? {
-                    trainer: {
-                        create: {
-                            specialization: specialization || 'General Fitness',
-                            experience: experience || 1,
-                        }
-                    }
-                } : {}),
-            },
-            include: { member: true, trainer: true }
+                role: 'admin',
+            }
         });
 
         const token = jwt.sign(
@@ -76,7 +56,16 @@ router.post('/login', async (req, res) => {
 
         const user = await prisma.user.findUnique({
             where: { email },
-            include: { member: true, trainer: true }
+            include: {
+                member: {
+                    include: {
+                        trainer: {
+                            include: { user: { select: { name: true } } }
+                        }
+                    }
+                },
+                trainer: true
+            }
         });
 
         if (!user) {
@@ -114,7 +103,16 @@ router.get('/me', async (req, res) => {
 
         const user = await prisma.user.findUnique({
             where: { id: decoded.id },
-            include: { member: true, trainer: true }
+            include: {
+                member: {
+                    include: {
+                        trainer: {
+                            include: { user: { select: { name: true } } }
+                        }
+                    }
+                },
+                trainer: true
+            }
         });
         if (!user) return res.status(404).json({ message: 'User not found' });
 
