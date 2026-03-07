@@ -57,16 +57,11 @@ router.post('/login', async (req, res) => {
         const user = await prisma.user.findUnique({
             where: { email },
             include: {
-                member: {
-                    include: {
-                        trainer: {
-                            include: { user: { select: { name: true } } }
-                        }
-                    }
-                },
-                trainer: true
+                member: true,
+                trainer: true,
             }
         });
+
 
         if (!user) {
             return res.status(401).json({ message: 'Invalid credentials' });
@@ -104,16 +99,11 @@ router.get('/me', async (req, res) => {
         const user = await prisma.user.findUnique({
             where: { id: decoded.id },
             include: {
-                member: {
-                    include: {
-                        trainer: {
-                            include: { user: { select: { name: true } } }
-                        }
-                    }
-                },
-                trainer: true
+                member: true,
+                trainer: true,
             }
         });
+
         if (!user) return res.status(404).json({ message: 'User not found' });
 
         const { password: _, ...userWithoutPass } = user;
