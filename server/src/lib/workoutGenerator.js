@@ -1,77 +1,136 @@
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { QdrantClient } = require("@qdrant/js-client-rest");
+require('dotenv').config();
+
+// Initialize Gemini
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// Use gemini-2.5-flash as strictly requested
+const model = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.7
+    }
+});
+
+// Initialize Qdrant
+const qdrant = new QdrantClient({
+    url: process.env.QDRANT_URL,
+    apiKey: process.env.QDRANT_API_KEY,
+});
+
 /**
- * Workout Plan Generator Algorithm
- * Generates a personalized weekly workout plan based on:
- * - fitnessGoal: 'weight_loss' | 'muscle_gain' | 'endurance'
- * - experienceLevel: 'beginner' | 'intermediate' | 'advanced'
- * - availableExercises: array from DB
+ * Generates a personalized workout plan using Gemini 2.5 Flash
+ * supplemented by historical context from Qdrant Vector DB if available.
  */
+const generateWorkout = async (request, member) => {
+    console.log(`[AI Engine] Starting generation for member: ${member.id}`);
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    try {
+        const {
+            fitnessGoal, experienceLevel, planDuration, targetFocus,
+            daysPerWeek, sessionTime, equipment, intensity,
+            recoveryOption, injuries
+        } = request;
 
-function getIntensity(experienceLevel) {
-    const levels = {
-        beginner: { sets: 2, reps: 10 },
-        intermediate: { sets: 3, reps: 12 },
-        advanced: { sets: 4, reps: 15 },
-    };
-    return levels[experienceLevel] || levels.intermediate;
-}
+        // 1. Retrieve Historical Context from Qdrant (Safely)
+        let historicalContext = "No specific historical benchmarks found. Proceeding with standard AI reasoning.";
+        try {
+            // Check if collection exists first
+            const collections = await qdrant.getCollections();
+            const hasCollection = collections.collections.some(c => c.name === "user_training_data");
 
-function filterExercisesByGoal(exercises, fitnessGoal) {
-    if (fitnessGoal === 'weight_loss') {
-        // Cardio + HIIT + Full body
-        const priority = ['cardio', 'full body', 'core'];
-        const cardio = exercises.filter(e => priority.some(p => e.muscleGroup.toLowerCase().includes(p)));
-        const others = exercises.filter(e => !priority.some(p => e.muscleGroup.toLowerCase().includes(p)));
-        return [...cardio, ...others];
-    }
-    if (fitnessGoal === 'muscle_gain') {
-        // Strength-focused: chest, back, legs, shoulders, arms
-        const priority = ['chest', 'back', 'legs', 'shoulders', 'arms', 'biceps', 'triceps'];
-        const strength = exercises.filter(e => priority.some(p => e.muscleGroup.toLowerCase().includes(p)));
-        const others = exercises.filter(e => !priority.some(p => e.muscleGroup.toLowerCase().includes(p)));
-        return [...strength, ...others];
-    }
-    if (fitnessGoal === 'endurance') {
-        // Mixed: cardio + strength at moderate intensity
-        return [...exercises].sort(() => 0.5 - Math.random());
-    }
-    return exercises;
-}
+            if (hasCollection) {
+                const vector = await getEmbedding(`${fitnessGoal} ${experienceLevel} ${targetFocus}`);
+                const searchResults = await qdrant.search("user_training_data", {
+                    vector: vector,
+                    limit: 3,
+                    with_payload: true
+                });
 
-function generateWeeklyPlan(fitnessGoal, experienceLevel, availableExercises) {
-    const intensity = getIntensity(experienceLevel);
-    const sorted = filterExercisesByGoal(availableExercises, fitnessGoal);
-
-    // Distribute exercises across days (3-4 exercises per day)
-    const exercisesPerDay = fitnessGoal === 'muscle_gain' ? 4 : 3;
-    const plan = {};
-
-    DAYS.forEach((day, index) => {
-        const startIdx = (index * exercisesPerDay) % sorted.length;
-        const dayExercises = [];
-
-        for (let i = 0; i < exercisesPerDay; i++) {
-            const ex = sorted[(startIdx + i) % sorted.length];
-            dayExercises.push({
-                exerciseId: ex.id,
-                name: ex.name,
-                muscleGroup: ex.muscleGroup,
-                sets: intensity.sets,
-                reps: intensity.reps,
-                instructions: ex.instructions,
-                videoUrl: ex.videoUrl,
-                day,
-            });
+                if (searchResults && searchResults.length > 0) {
+                    historicalContext = searchResults.map(r =>
+                        `Prior Reference: ${r.payload.routine_summary || 'N/A'}. Success Indicator: ${r.payload.outcome || 'N/A'}`
+                    ).join("\n");
+                    console.log("[AI Engine] Successfully pulled context from Qdrant.");
+                }
+            } else {
+                console.log("[AI Engine] Qdrant collection 'user_training_data' not found. Using zero-shot reasoning.");
+            }
+        } catch (qErr) {
+            console.warn("[AI Engine] Vector search bypassed:", qErr.message);
         }
 
-        plan[day] = dayExercises;
-    });
+        // 2. Construct the Gemini Prompt
+        const prompt = `
+            You are Atlyss AI, a professional high-tier Fitness Trainer. 
+            Generate a personalized workout plan for:
+            - Age: ${member.age || 'N/A'}
+            - Weight: ${member.weight || 'N/A'}kg
+            - Height: ${member.height || 'N/A'}cm
+            - Fitness Goal: ${fitnessGoal}
+            - Experience Level: ${experienceLevel}
+            - Equipment Available: ${Array.isArray(equipment) ? equipment.join(", ") : equipment}
+            - Target Focus: ${targetFocus}
+            - Training Days per Week: ${daysPerWeek}
+            - Session Duration: ${sessionTime} min
+            - Intensity Level: ${intensity}
+            - Injuries/Restrictions: ${injuries || 'None'}
+            
+            VDB Historical Context:
+            ${historicalContext}
 
-    // Sunday = Rest
-    plan['Sunday'] = [];
+            YOUR TASK:
+            1. Return a JSON object with this exact structure:
+               {
+                 "name": "Smart-AI Optimized Plan",
+                 "goal": "${fitnessGoal}",
+                 "difficulty": "${experienceLevel}",
+                 "duration": ${planDuration},
+                 "exercises": [
+                   {
+                     "day": 1,
+                     "dayTitle": "Chest & Triceps (Example)",
+                     "name": "Bench Press",
+                     "sets": 3,
+                     "reps": "10-12",
+                     "restTime": 60,
+                     "instructions": "Full range of motion...",
+                     "targetMuscle": "Chest",
+                     "order": 0
+                   }
+                 ]
+               }
+            2. Logic: Ensure safety regarding injuries. Use ONLY specified equipment. Distribute work over ${daysPerWeek} distinct days within the ${planDuration} day cycle.
+        `;
 
-    return plan;
+        // 3. Generate the Plan
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const jsonText = response.text();
+
+        console.log("[AI Engine] Plan generation successful.");
+        return JSON.parse(jsonText);
+    } catch (err) {
+        console.error("[AI Engine] Critical Failure:", err.message);
+        throw new Error(`AI Workout Generation failed: ${err.message}`);
+    }
+};
+
+/**
+ * Helper to get embeddings for Qdrant search
+ */
+async function getEmbedding(text) {
+    try {
+        const embedModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+        const result = await embedModel.embedContent(text);
+        return result.embedding.values;
+    } catch (e) {
+        // Fallback to a zero-vector if embedding fails (common if quotas are hit or model is restricted)
+        console.warn("[AI Engine] Embedding failed, using fallback vector.");
+        return new Array(768).fill(0); // Standard 768-dim if unknown, but Qdrant needs matching dims
+    }
 }
 
-module.exports = { generateWeeklyPlan };
+module.exports = { generateWorkout };

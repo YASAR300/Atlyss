@@ -62,19 +62,65 @@ const ModalLabel = ({ children }) => (
     <label style={{ display: 'block', fontFamily: T.mono, fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.muted, marginBottom: 5 }}>{children}</label>
 );
 
-const BtnPrimary = ({ children, style, ...p }) => (
-    <button {...p} style={{ background: T.acc, border: `1px solid ${T.acc}`, borderRadius: 3, padding: '8px 18px', fontFamily: T.mono, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.09em', color: '#fff', cursor: 'pointer', transition: 'all 0.12s', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: '0 2px 10px rgba(241,100,42,0.18)', ...style }}
-        onMouseEnter={e => { e.currentTarget.style.background = '#e55a24'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-        onMouseLeave={e => { e.currentTarget.style.background = T.acc; e.currentTarget.style.transform = 'none'; }}
-    >{children}</button>
-);
+const BtnPrimary = ({ children, style, ...p }) => {
+    const [hover, setHover] = useState(false);
+    return (
+        <button {...p}
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+            style={{
+                background: hover ? '#e55a24' : T.acc,
+                border: `1px solid ${T.acc}`,
+                borderRadius: 3,
+                padding: '8px 18px',
+                fontFamily: T.mono,
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                letterSpacing: '0.09em',
+                color: '#fff',
+                cursor: 'pointer',
+                transition: 'all 0.12s',
+                textTransform: 'uppercase',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 7,
+                boxShadow: '0 2px 10px rgba(241,100,42,0.18)',
+                transform: hover ? 'translateY(-1px)' : 'none',
+                ...style
+            }}
+        >{children}</button>
+    );
+};
 
-const BtnSecondary = ({ children, style, ...p }) => (
-    <button {...p} style={{ background: 'transparent', border: `1px solid ${T.borderMid}`, borderRadius: 3, padding: '8px 16px', fontFamily: T.mono, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.09em', color: T.muted, cursor: 'pointer', transition: 'all 0.12s', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, ...style }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = T.acc; e.currentTarget.style.color = T.text; }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = T.borderMid; e.currentTarget.style.color = T.muted; }}
-    >{children}</button>
-);
+const BtnSecondary = ({ children, style, ...p }) => {
+    const [hover, setHover] = useState(false);
+    return (
+        <button {...p}
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+            style={{
+                background: 'transparent',
+                border: `1px solid ${hover ? T.acc : T.borderMid}`,
+                borderRadius: 3,
+                padding: '8px 16px',
+                fontFamily: T.mono,
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                letterSpacing: '0.09em',
+                color: hover ? T.text : T.muted,
+                cursor: 'pointer',
+                transition: 'all 0.12s',
+                textTransform: 'uppercase',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 7,
+                ...style
+            }}
+        >{children}</button>
+    );
+};
 
 const FormSection = ({ label }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0 4px' }}>
@@ -112,11 +158,13 @@ const BLANK_FORM = {
     trainerType: 'general', experience: 1,
     salary: '', gymJoinDate: '', successRate: '',
     certificates: '', fitnessJourney: '', termsConditions: '', photo: '',
+    age: '', isActive: true,
 };
 
 export default function Trainers() {
     const { user } = useAuth();
     const isAdmin = user?.role === 'admin';
+    const isTrainer = user?.role === 'trainer';
 
     const [trainers, setTrainers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -125,13 +173,16 @@ export default function Trainers() {
     const [editTrainer, setEditTrainer] = useState(null); // edit drawer
     const [form, setForm] = useState(BLANK_FORM);
     const [saving, setSaving] = useState(false);
+    const [showReviewModal, setShowReviewModal] = useState(null); // trainer object
+    const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
     const photoRef = useRef();
 
     useEffect(() => { setTimeout(() => setMounted(true), 80); }, []);
 
     const fetchData = () => {
         setLoading(true);
-        api.get('/admin/trainers').then(r => setTrainers(r.data.trainers)).catch(console.error).finally(() => setLoading(false));
+        const endpoint = isAdmin ? '/admin/trainers' : (isTrainer ? '/admin/trainers' : '/member/trainers');
+        api.get(endpoint).then(r => setTrainers(r.data.trainers)).catch(console.error).finally(() => setLoading(false));
     };
     useEffect(() => { fetchData(); }, []);
 
@@ -169,6 +220,19 @@ export default function Trainers() {
         finally { setSaving(false); }
     };
 
+    const handleSubmitReview = async (e) => {
+        e.preventDefault();
+        if (!showReviewModal) return;
+        setSaving(true);
+        try {
+            await api.post(`/member/review/${showReviewModal.trainer?.id}`, reviewForm);
+            setShowReviewModal(null);
+            setReviewForm({ rating: 5, comment: '' });
+            fetchData();
+        } catch (err) { alert(err.response?.data?.message || 'Failed to submit review'); }
+        finally { setSaving(false); }
+    };
+
     const deleteTrainer = async (id) => {
         if (!confirm('Remove this trainer?')) return;
         try { await api.delete(`/admin/trainers/${id}`); fetchData(); }
@@ -192,6 +256,8 @@ export default function Trainers() {
             fitnessJourney: t.trainer?.fitnessJourney || '',
             termsConditions: t.trainer?.termsConditions || '',
             photo: t.trainer?.photo || '',
+            age: t.trainer?.age || '',
+            isActive: t.trainer?.isActive ?? true,
         });
     };
 
@@ -331,9 +397,42 @@ export default function Trainers() {
                                     </div>
 
                                     {/* Gym join date */}
-                                    {t.trainer?.gymJoinDate && (
+                                    {(isAdmin || t.id === user.id) && t.trainer?.gymJoinDate && (
                                         <div style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted, marginTop: 8 }}>
-                                            Joined gym: {fmtDate(t.trainer.gymJoinDate)}
+                                            Joined: {fmtDate(t.trainer.gymJoinDate)}
+                                        </div>
+                                    )}
+
+                                    {/* Reviews Preview (Admins/Trainers see all, Members see if any) */}
+                                    {t.trainer?.reviews?.length > 0 && (
+                                        <div style={{ marginTop: 12, borderTop: `1px solid ${T.faint}`, paddingTop: 10 }}>
+                                            <div style={{ fontFamily: T.mono, fontSize: '0.5rem', color: T.muted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Recent Feedback</div>
+                                            {t.trainer.reviews.slice(0, 2).map((rev, ri) => (
+                                                <div key={ri} style={{ marginBottom: 6, padding: '6px 9px', background: 'rgba(255,255,255,0.02)', borderRadius: 2 }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                                                        <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.amber, fontWeight: 700 }}>{Array(rev.rating).fill('★').join('')}</span>
+                                                        <span style={{ fontFamily: T.mono, fontSize: '0.5rem', color: T.muted }}>{rev.member?.user?.name || 'Member'}</span>
+                                                    </div>
+                                                    <div style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.text, lineHeight: 1.3 }}>{rev.comment}</div>
+                                                </div>
+                                            ))}
+                                            {t.trainer.reviews.length > 2 && (
+                                                <div style={{ fontFamily: T.mono, fontSize: '0.5rem', color: T.muted, textAlign: 'center', marginTop: 4 }}>+ {t.trainer.reviews.length - 2} more reviews</div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Member Review Button */}
+                                    {user.role === 'member' && (
+                                        <BtnSecondary onClick={() => setShowReviewModal(t)} style={{ width: '100%', marginTop: 12, padding: '6px' }}>
+                                            Leave Feedback
+                                        </BtnSecondary>
+                                    )}
+
+                                    {/* Status Badge */}
+                                    {!t.trainer?.isActive && (
+                                        <div style={{ marginTop: 10, padding: '4px 10px', background: T.redDim, border: `1px solid ${T.redBorder}`, borderRadius: 2, fontFamily: T.mono, fontSize: '0.6rem', color: T.red, fontWeight: 700, textAlign: 'center' }}>
+                                            DEACTIVATED / ON LEAVE
                                         </div>
                                     )}
 
@@ -416,8 +515,12 @@ export default function Trainers() {
                                     <div><ModalLabel>Experience (Years)</ModalLabel><InputField type="number" min="0" value={form.experience} onChange={e => setForm({ ...form, experience: e.target.value })} /></div>
                                     <div><ModalLabel>Primary Specialization</ModalLabel><InputField value={form.specialization} onChange={e => setForm({ ...form, specialization: e.target.value })} placeholder="e.g. Strength Training" /></div>
                                     <div><ModalLabel>All Specializations (comma-sep.)</ModalLabel><InputField value={form.specializations} onChange={e => setForm({ ...form, specializations: e.target.value })} placeholder="Chest, Back, Full Body" /></div>
-                                    <div><ModalLabel>Salary (₹/month)</ModalLabel><InputField type="number" value={form.salary} onChange={e => setForm({ ...form, salary: e.target.value })} /></div>
-                                    <div><ModalLabel>Gym Join Date</ModalLabel><InputField type="date" value={form.gymJoinDate} onChange={e => setForm({ ...form, gymJoinDate: e.target.value })} /></div>
+                                    {(isAdmin || editTrainer.id === user.id) && (
+                                        <>
+                                            <div><ModalLabel>Salary (₹/month)</ModalLabel><InputField type="number" value={form.salary} onChange={e => setForm({ ...form, salary: e.target.value })} /></div>
+                                            <div><ModalLabel>Gym Join Date</ModalLabel><InputField type="date" value={form.gymJoinDate} onChange={e => setForm({ ...form, gymJoinDate: e.target.value })} /></div>
+                                        </>
+                                    )}
                                     <div style={{ gridColumn: 'span 2' }}><ModalLabel>Success Rate (%)</ModalLabel><InputField type="number" min="0" max="100" step="0.1" value={form.successRate} onChange={e => setForm({ ...form, successRate: e.target.value })} placeholder="e.g. 87.5" /></div>
                                 </div>
 
@@ -466,6 +569,7 @@ export default function Trainers() {
                                 <FormSection label="Personal" />
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                     <div><ModalLabel>Mobile</ModalLabel><InputField value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} /></div>
+                                    <div><ModalLabel>Age</ModalLabel><InputField type="number" value={form.age} onChange={e => setForm({ ...form, age: e.target.value })} placeholder="30" /></div>
                                     <div>
                                         <ModalLabel>Gender</ModalLabel>
                                         <SelectField value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })}>
@@ -509,6 +613,43 @@ export default function Trainers() {
                                 <div style={{ display: 'flex', gap: 10, marginTop: 10, paddingBottom: 4 }}>
                                     <BtnSecondary type="button" onClick={() => setShowModal(false)} style={{ flex: 1 }}>Cancel</BtnSecondary>
                                     <BtnPrimary type="submit" style={{ flex: 2 }} disabled={saving}>{saving ? 'Creating…' : 'Register Trainer'}</BtnPrimary>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* ═══════════════════════════════════════
+                    REVIEW MODAL (FOR MEMBERS)
+                ══════════════════════════════════════ */}
+                {showReviewModal && (
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+                        <div style={{ background: '#0c0c0c', border: `1px solid ${T.border}`, borderRadius: 4, width: '100%', maxWidth: 420, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.8)', animation: 'modalIn 0.2s ease' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+                                <div>
+                                    <div style={{ fontFamily: T.mono, fontSize: '0.5rem', color: T.acc, letterSpacing: '0.15em', textTransform: 'uppercase' }}>// trainer feedback</div>
+                                    <h2 style={{ fontFamily: T.disp, fontSize: '1.6rem', color: T.hi, letterSpacing: '0.04em' }}>Review {showReviewModal.name}</h2>
+                                </div>
+                                <button onClick={() => setShowReviewModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted }}><XMarkIcon style={{ width: 18 }} /></button>
+                            </div>
+                            <form onSubmit={handleSubmitReview}>
+                                <div style={{ marginBottom: 18 }}>
+                                    <ModalLabel>Rating</ModalLabel>
+                                    <div style={{ display: 'flex', gap: 6 }}>
+                                        {[1, 2, 3, 4, 5].map(v => (
+                                            <button key={v} type="button" onClick={() => setReviewForm({ ...reviewForm, rating: v })} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4 }}>
+                                                <StarIcon style={{ width: 24, height: 24, color: v <= reviewForm.rating ? T.amber : T.faint, fill: v <= reviewForm.rating ? T.amber : 'none' }} />
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div style={{ marginBottom: 20 }}>
+                                    <ModalLabel>Your Opinion</ModalLabel>
+                                    <TextArea value={reviewForm.comment} onChange={e => setReviewForm({ ...reviewForm, comment: e.target.value })} placeholder="Tell us about your experience…" required />
+                                </div>
+                                <div style={{ display: 'flex', gap: 10 }}>
+                                    <BtnSecondary type="button" onClick={() => setShowReviewModal(null)} style={{ flex: 1 }}>Not Now</BtnSecondary>
+                                    <BtnPrimary type="submit" style={{ flex: 2 }} disabled={saving}>{saving ? 'Submitting…' : 'Post Review'}</BtnPrimary>
                                 </div>
                             </form>
                         </div>

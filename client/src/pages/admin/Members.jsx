@@ -72,19 +72,65 @@ const ModalLabel = ({ children }) => (
     <label style={{ display: 'block', fontFamily: T.mono, fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.muted, marginBottom: 5 }}>{children}</label>
 );
 
-const BtnPrimary = ({ children, style, ...p }) => (
-    <button {...p} style={{ background: T.acc, border: `1px solid ${T.acc}`, borderRadius: 3, padding: '8px 18px', fontFamily: T.mono, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.09em', color: '#fff', cursor: 'pointer', transition: 'all 0.12s', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: '0 2px 10px rgba(241,100,42,0.18)', ...style }}
-        onMouseEnter={e => { e.currentTarget.style.background = '#e55a24'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-        onMouseLeave={e => { e.currentTarget.style.background = T.acc; e.currentTarget.style.transform = 'none'; }}
-    >{children}</button>
-);
+const BtnPrimary = ({ children, style, ...p }) => {
+    const [hover, setHover] = useState(false);
+    return (
+        <button {...p}
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+            style={{
+                background: hover ? '#e55a24' : T.acc,
+                border: `1px solid ${T.acc}`,
+                borderRadius: 3,
+                padding: '8px 18px',
+                fontFamily: T.mono,
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                letterSpacing: '0.09em',
+                color: '#fff',
+                cursor: 'pointer',
+                transition: 'all 0.12s',
+                textTransform: 'uppercase',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 7,
+                boxShadow: '0 2px 10px rgba(241,100,42,0.18)',
+                transform: hover ? 'translateY(-1px)' : 'none',
+                ...style
+            }}
+        >{children}</button>
+    );
+};
 
-const BtnSecondary = ({ children, style, ...p }) => (
-    <button {...p} style={{ background: 'transparent', border: `1px solid ${T.borderMid}`, borderRadius: 3, padding: '8px 16px', fontFamily: T.mono, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.09em', color: T.muted, cursor: 'pointer', transition: 'all 0.12s', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, ...style }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = T.acc; e.currentTarget.style.color = T.text; }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = T.borderMid; e.currentTarget.style.color = T.muted; }}
-    >{children}</button>
-);
+const BtnSecondary = ({ children, style, ...p }) => {
+    const [hover, setHover] = useState(false);
+    return (
+        <button {...p}
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+            style={{
+                background: 'transparent',
+                border: `1px solid ${hover ? T.acc : T.borderMid}`,
+                borderRadius: 3,
+                padding: '8px 16px',
+                fontFamily: T.mono,
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                letterSpacing: '0.09em',
+                color: hover ? T.text : T.muted,
+                cursor: 'pointer',
+                transition: 'all 0.12s',
+                textTransform: 'uppercase',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 7,
+                ...style
+            }}
+        >{children}</button>
+    );
+};
 
 // ── Section header inside form ──
 const FormSection = ({ label }) => (
@@ -100,6 +146,7 @@ const BLANK_FORM = {
     height: '', weight: '', fitnessGoal: 'weight_loss', sessionTime: '',
     membershipType: 'basic', membershipPackage: '', membershipAmount: '', membershipDueDate: '',
     guardianName: '', guardianRelation: '', guardianMobile: '',
+    trainerId: '',
 };
 
 const BLANK_MEAS = {
@@ -129,7 +176,7 @@ export default function Members() {
     const [showMeasModal, setShowMeasModal] = useState(false);
     const [measForm, setMeasForm] = useState(BLANK_MEAS);
     const [measHistory, setMeasHistory] = useState([]);
-    const [measTab, setMeasTab] = useState('info'); // 'info' | 'measurements'
+    const [measTab, setMeasTab] = useState('info'); // 'info' | 'measurements' | 'workout'
     const [saving, setSaving] = useState(false);
 
     useEffect(() => { setTimeout(() => setMounted(true), 80); }, []);
@@ -212,6 +259,7 @@ export default function Members() {
             guardianName: m.member?.guardianName || '',
             guardianRelation: m.member?.guardianRelation || '',
             guardianMobile: m.member?.guardianMobile || '',
+            trainerId: m.member?.trainerId || '',
         });
         // load measurements
         const measEndpoint = isTrainer
@@ -404,6 +452,7 @@ export default function Members() {
                             <div style={{ display: 'flex', gap: 6, padding: '14px 24px 0', borderBottom: '1px solid #1a1a1a' }}>
                                 <button className={`tab-btn${measTab === 'info' ? ' active' : ''}`} onClick={() => setMeasTab('info')}>Profile</button>
                                 <button className={`tab-btn${measTab === 'measurements' ? ' active' : ''}`} onClick={() => setMeasTab('measurements')}>Measurements ({measHistory.length})</button>
+                                <button className={`tab-btn${measTab === 'workout' ? ' active' : ''}`} onClick={() => setMeasTab('workout')}>Workout Plan</button>
                             </div>
 
                             <div style={{ padding: '20px 24px', flex: 1 }}>
@@ -477,6 +526,17 @@ export default function Members() {
 
                                         {!isTrainer && (
                                             <>
+                                                <FormSection label="Personal Trainer" />
+                                                <div style={{ marginBottom: 10 }}>
+                                                    <ModalLabel>Assigned Trainer</ModalLabel>
+                                                    <SelectField value={form.trainerId} onChange={e => setForm({ ...form, trainerId: e.target.value })}>
+                                                        <option value="">No Trainer</option>
+                                                        {trainers.map(t => (
+                                                            <option key={t.id} value={t.trainer?.id}>{t.name} ({t.trainer?.specialization})</option>
+                                                        ))}
+                                                    </SelectField>
+                                                </div>
+
                                                 <FormSection label="Guardian / Emergency" />
                                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                                     <div><ModalLabel>Guardian Name</ModalLabel><InputField value={form.guardianName} onChange={e => setForm({ ...form, guardianName: e.target.value })} /></div>
@@ -500,7 +560,7 @@ export default function Members() {
                                             >Remove Member Access</button>
                                         )}
                                     </form>
-                                ) : (
+                                ) : measTab === 'measurements' ? (
                                     /* Measurements tab */
                                     <div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -535,6 +595,39 @@ export default function Members() {
                                                     {meas.notes && <div style={{ padding: '6px 14px 10px', fontFamily: T.mono, fontSize: '0.62rem', color: T.muted, fontStyle: 'italic' }}>{meas.notes}</div>}
                                                 </div>
                                             ))
+                                        )}
+                                    </div>
+                                ) : (
+                                    /* Workout Plan tab */
+                                    <div>
+                                        {selectedMember.member?.workoutPlans?.[0] ? (() => {
+                                            const plan = selectedMember.member.workoutPlans[0];
+                                            return (
+                                                <div>
+                                                    <div style={{ background: T.accDim, border: `1px solid ${T.accBorder}`, borderRadius: 4, padding: 16, marginBottom: 20 }}>
+                                                        <div style={{ fontFamily: T.disp, fontSize: '1.4rem', color: T.hi, marginBottom: 4 }}>{plan.name}</div>
+                                                        <div style={{ fontFamily: T.mono, fontSize: '0.65rem', color: T.text }}>Goal: {plan.goal} · Difficulty: {plan.difficulty}</div>
+                                                        <div style={{ fontFamily: T.mono, fontSize: '0.55rem', color: T.muted, marginTop: 6, textTransform: 'uppercase' }}>Current Active Routine</div>
+                                                    </div>
+
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                                        {plan.exercises?.map((ex, i) => (
+                                                            <div key={ex.id} style={{ borderLeft: `2px solid ${T.borderMid}`, paddingLeft: 12, marginBottom: 4 }}>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                    <span style={{ fontFamily: T.mono, fontSize: '0.7rem', color: T.hi, fontWeight: 700 }}>{ex.dayTitle}: {ex.name}</span>
+                                                                    <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.acc }}>{ex.sets} × {ex.reps}</span>
+                                                                </div>
+                                                                <div style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted, marginTop: 2 }}>{ex.targetMuscle} · Rest: {ex.restTime}s</div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })() : (
+                                            <div style={{ textAlign: 'center', padding: '40px 0', background: T.card, border: `1px dashed ${T.border}`, borderRadius: 4 }}>
+                                                <ClipboardDocumentListIcon style={{ width: 32, color: T.faint, margin: '0 auto 10px' }} />
+                                                <div style={{ fontFamily: T.mono, fontSize: '0.7rem', color: T.muted }}>No active workout plan found</div>
+                                            </div>
                                         )}
                                     </div>
                                 )}
@@ -626,6 +719,17 @@ export default function Members() {
                                             <option value="general_fitness">General Fitness</option>
                                         </SelectField>
                                     </div>
+                                </div>
+
+                                <FormSection label="Trainer Assignment" />
+                                <div style={{ marginBottom: 4 }}>
+                                    <ModalLabel>Assign Personal Trainer</ModalLabel>
+                                    <SelectField value={form.trainerId} onChange={e => setForm({ ...form, trainerId: e.target.value })}>
+                                        <option value="">None / General</option>
+                                        {trainers.map(t => (
+                                            <option key={t.id} value={t.trainer?.id}>{t.name} ({t.trainer?.specialization})</option>
+                                        ))}
+                                    </SelectField>
                                 </div>
 
                                 <FormSection label="Guardian / Emergency Contact" />

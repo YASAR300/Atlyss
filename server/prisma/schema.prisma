@@ -62,9 +62,11 @@ model Member {
 
   user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   trainer          Trainer?           @relation(fields: [trainerId], references: [id], onDelete: SetNull)
+  workoutRequests  WorkoutRequest[]
   workoutPlans     WorkoutPlan[]
   attendance       Attendance[]
   measurements     BodyMeasurement[]
+  reviews          TrainerReview[]
 
   @@index([fitnessGoal])
   @@index([membershipType])
@@ -118,6 +120,7 @@ model Trainer {
   photo            String?  // base64 or URL
   mobile           String?
   gender           String?
+  age              Int?
   address          String?
   weight           Float?
   height           Float?
@@ -130,6 +133,7 @@ model Trainer {
   salary           Float?
   gymJoinDate      DateTime?
   successRate      Float?   // percentage
+  isActive         Boolean  @default(true)
 
   // Certifications & Journey
   certificates     String[] @default([])
@@ -139,6 +143,83 @@ model Trainer {
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   members          Member[]
   classes          Class[]
+  reviews          TrainerReview[]
+  workoutPlans     WorkoutPlan[]
+}
+
+model TrainerReview {
+  id               Int      @id @default(autoincrement())
+  trainerId         Int
+  memberId          Int
+  rating           Int      @default(5)
+  comment          String?
+  createdAt        DateTime @default(now())
+
+  trainer          Trainer  @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  member           Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([trainerId])
+  @@index([memberId])
+}
+
+model WorkoutRequest {
+  id              Int      @id @default(autoincrement())
+  memberId        Int
+  fitnessGoal     String
+  experienceLevel String
+  planDuration    Int      @default(7) // Days
+  targetFocus     String?  // Optional focus area
+  daysPerWeek     Int      @default(3)
+  sessionTime     Int      @default(60) // Minutes
+  equipment       String[] @default([])
+  intensity       String   @default("moderate")
+  recoveryOption  String?  // Stretching, Yoga, etc.
+  injuries        String?
+  status          String   @default("pending") // pending | generated | fulfilled
+  createdAt       DateTime @default(now())
+
+  member          Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  workoutPlan     WorkoutPlan?
+}
+
+model WorkoutPlan {
+  id             Int               @id @default(autoincrement())
+  memberId       Int
+  requestId      Int?              @unique
+  name           String
+  goal           String
+  duration       Int               @default(7)
+  difficulty     String
+  status         String            @default("pending") // pending | active | completed
+  isAiGenerated  Boolean           @default(true)
+  isTrainerEdited Boolean          @default(false)
+  trainerId      Int?              // The trainer who reviewed/edited it
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  member         Member            @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  request        WorkoutRequest?   @relation(fields: [requestId], references: [id])
+  trainer        Trainer?          @relation(fields: [trainerId], references: [id], onDelete: SetNull)
+  exercises      WorkoutExercise[]
+
+  @@index([memberId])
+  @@index([status])
+}
+
+model WorkoutExercise {
+  id            Int         @id @default(autoincrement())
+  planId        Int
+  day           Int         // Day 1, Day 2, etc.
+  dayTitle      String?     // e.g. "Chest + Triceps"
+  name          String
+  sets          Int
+  reps          String      // String to handle "10-12" or "failure"
+  restTime      Int         @default(60) // Seconds
+  instructions  String
+  targetMuscle  String
+  order         Int         @default(0)
+
+  plan          WorkoutPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
 }
 
 model Exercise {
@@ -147,25 +228,11 @@ model Exercise {
   muscleGroup  String
   difficulty   String        @default("beginner")
   instructions String
+  equipment    String[]      @default([])
   videoUrl     String?
-  workoutPlans WorkoutPlan[]
 
   @@index([muscleGroup])
   @@index([difficulty])
-}
-
-model WorkoutPlan {
-  id         Int      @id @default(autoincrement())
-  memberId   Int
-  exerciseId Int
-  day        String
-  sets       Int      @default(3)
-  reps       Int      @default(12)
-  createdAt  DateTime @default(now())
-  member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-
-  @@index([memberId])
 }
 
 model Class {

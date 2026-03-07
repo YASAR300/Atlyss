@@ -13,6 +13,7 @@ import Members from './pages/admin/Members';
 import Trainers from './pages/admin/Trainers';
 import Classes from './pages/Classes';
 import Workouts from './pages/Workouts';
+import ManageWorkouts from './pages/trainer/ManageWorkouts';
 
 function App() {
   return (
@@ -49,7 +50,7 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/trainers" element={
-            <ProtectedRoute roles={['admin', 'trainer']}>
+            <ProtectedRoute roles={['admin', 'trainer', 'member']}>
               <Trainers />
             </ProtectedRoute>
           } />
@@ -58,6 +59,11 @@ function App() {
           <Route path="/dashboard/trainer" element={
             <ProtectedRoute roles={['trainer']}>
               <TrainerDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/manage-workouts" element={
+            <ProtectedRoute roles={['trainer', 'admin']}>
+              <ManageWorkouts />
             </ProtectedRoute>
           } />
 

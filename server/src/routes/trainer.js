@@ -20,7 +20,12 @@ router.get('/members', async (req, res) => {
             where: { trainerId: trainer.id },
             include: {
                 user: { select: { id: true, name: true, email: true } },
-                measurements: { orderBy: { measuredAt: 'desc' }, take: 1 }
+                measurements: { orderBy: { measuredAt: 'desc' }, take: 1 },
+                workoutPlans: {
+                    where: { status: 'active' },
+                    include: { exercises: { orderBy: [{ day: 'asc' }, { order: 'asc' }] } },
+                    take: 1
+                }
             }
         });
         res.json({ members });
@@ -37,7 +42,12 @@ router.get('/members/:memberId', async (req, res) => {
             where: { id: parseInt(req.params.memberId) },
             include: {
                 user: { select: { id: true, name: true, email: true } },
-                measurements: { orderBy: { measuredAt: 'desc' } }
+                measurements: { orderBy: { measuredAt: 'desc' } },
+                workoutPlans: {
+                    where: { status: 'active' },
+                    include: { exercises: { orderBy: [{ day: 'asc' }, { order: 'asc' }] } },
+                    take: 1
+                }
             }
         });
         if (!member) return res.status(404).json({ message: 'Member not found' });
@@ -152,8 +162,8 @@ router.get('/workouts/:memberId', async (req, res) => {
     try {
         const plans = await prisma.workoutPlan.findMany({
             where: { memberId: parseInt(req.params.memberId) },
-            include: { exercise: true },
-            orderBy: { day: 'asc' }
+            include: { exercises: { orderBy: { order: 'asc' } } },
+            orderBy: { createdAt: 'desc' }
         });
         res.json({ plans });
     } catch (err) {
@@ -167,8 +177,25 @@ router.post('/workouts', async (req, res) => {
         const { memberId, exerciseId, day, sets, reps } = req.body;
         if (!memberId || !exerciseId || !day) return res.status(400).json({ message: 'memberId, exerciseId, and day are required' });
         const plan = await prisma.workoutPlan.create({
-            data: { memberId: parseInt(memberId), exerciseId: parseInt(exerciseId), day, sets: parseInt(sets) || 3, reps: parseInt(reps) || 12 },
-            include: { exercise: true }
+            data: {
+                memberId: parseInt(memberId),
+                name: 'Custom Trainer Plan',
+                goal: 'Personal Training',
+                difficulty: 'Intermediate',
+                status: 'active',
+                isAiGenerated: false,
+                exercises: {
+                    create: {
+                        day,
+                        name: 'Exercise Placeholder', // Based on body, would need more detail
+                        sets: parseInt(sets) || 3,
+                        reps: String(reps) || '12',
+                        instructions: 'Follow trainer guidance',
+                        targetMuscle: 'Various'
+                    }
+                }
+            },
+            include: { exercises: true }
         });
         res.status(201).json({ plan });
     } catch (err) {

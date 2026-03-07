@@ -16,19 +16,11 @@ router.get('/workouts', async (req, res) => {
 
         const plans = await prisma.workoutPlan.findMany({
             where: { memberId: member.id },
-            include: { exercise: true },
-            orderBy: { day: 'asc' }
+            include: { exercises: { orderBy: { order: 'asc' } } },
+            orderBy: { createdAt: 'desc' }
         });
 
-        // Group by day
-        const grouped = {};
-        const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        dayOrder.forEach(d => { grouped[d] = []; });
-        plans.forEach(p => {
-            if (grouped[p.day]) grouped[p.day].push(p);
-        });
-
-        res.json({ plans, grouped });
+        res.json({ plans });
     } catch (err) {
         console.error('Member workouts error:', err);
         res.status(500).json({ message: 'Failed to fetch workouts' });
@@ -155,6 +147,54 @@ router.post('/classes/:id/book', async (req, res) => {
     } catch (err) {
         console.error('Book class error:', err);
         res.status(500).json({ message: 'Failed to book class' });
+    }
+});
+
+// GET /api/member/trainers — list trainers for members
+router.get('/trainers', async (req, res) => {
+    try {
+        const trainers = await prisma.user.findMany({
+            where: { role: 'trainer', trainer: { isActive: true } },
+            include: {
+                trainer: {
+                    include: {
+                        reviews: { include: { member: { include: { user: { select: { name: true } } } } }, orderBy: { createdAt: 'desc' } }
+                    }
+                }
+            }
+        });
+        res.json({ trainers });
+    } catch (err) {
+        console.error('Fetch trainers error:', err);
+        res.status(500).json({ message: 'Failed to fetch trainers' });
+    }
+});
+
+// POST /api/member/review/:trainerId — submit a review for a trainer
+router.post('/review/:trainerId', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const trainerId = parseInt(req.params.trainerId);
+        const { rating, comment } = req.body;
+
+        const member = await prisma.member.findUnique({ where: { userId } });
+        if (!member) return res.status(404).json({ message: 'Member not found' });
+
+        // Verify this is the member's trainer or they are allowed to review
+        // For now, let's allow any member to review any trainer they see
+        const review = await prisma.trainerReview.create({
+            data: {
+                memberId: member.id,
+                trainerId,
+                rating: parseInt(rating) || 5,
+                comment
+            }
+        });
+
+        res.status(201).json({ review, message: 'Review submitted! Thank you.' });
+    } catch (err) {
+        console.error('Submit review error:', err);
+        res.status(500).json({ message: 'Failed to submit review' });
     }
 });
 

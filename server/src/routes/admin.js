@@ -13,14 +13,22 @@ const MEMBER_INCLUDE = {
     member: {
         include: {
             trainer: { include: { user: { select: { id: true, name: true } } } },
-            measurements: { orderBy: { measuredAt: 'desc' }, take: 1 }
+            measurements: { orderBy: { measuredAt: 'desc' }, take: 1 },
+            workoutPlans: {
+                where: { status: 'active' },
+                include: { exercises: { orderBy: [{ day: 'asc' }, { order: 'asc' }] } },
+                take: 1
+            }
         }
     }
 };
 
 const TRAINER_INCLUDE = {
     trainer: {
-        include: { members: { include: { user: { select: { id: true, name: true } } } } }
+        include: {
+            members: { include: { user: { select: { id: true, name: true } } } },
+            reviews: { include: { member: { include: { user: { select: { name: true } } } } }, orderBy: { createdAt: 'desc' } }
+        }
     }
 };
 
@@ -127,6 +135,7 @@ router.post('/members', async (req, res) => {
             height, weight, fitnessGoal, sessionTime,
             membershipType, membershipPackage, membershipAmount, membershipDueDate,
             guardianName, guardianRelation, guardianMobile,
+            trainerId,
         } = req.body;
 
         if (!name || !email || !password) return res.status(400).json({ message: 'Name, email and password required' });
@@ -161,6 +170,7 @@ router.post('/members', async (req, res) => {
                         guardianName: guardianName || null,
                         guardianRelation: guardianRelation || null,
                         guardianMobile: guardianMobile || null,
+                        trainerId: trainerId ? parseInt(trainerId) : null,
                     }
                 }
             },
@@ -185,6 +195,7 @@ router.put('/members/:id', async (req, res) => {
             height, weight, fitnessGoal, sessionTime,
             membershipType, membershipPackage, membershipAmount, membershipDueDate,
             guardianName, guardianRelation, guardianMobile,
+            trainerId,
         } = req.body;
 
         await prisma.$transaction([
@@ -209,6 +220,7 @@ router.put('/members/:id', async (req, res) => {
                     guardianName: guardianName ?? undefined,
                     guardianRelation: guardianRelation ?? undefined,
                     guardianMobile: guardianMobile ?? undefined,
+                    trainerId: trainerId ? parseInt(trainerId) : (trainerId === null ? null : undefined),
                 }
             })
         ]);
@@ -216,6 +228,22 @@ router.put('/members/:id', async (req, res) => {
     } catch (err) {
         console.error('Update member error:', err);
         res.status(500).json({ message: 'Failed to update member' });
+    }
+});
+
+// ─── POST Trainer Assignment ──────────────────────────────────────────────────
+router.put('/members/:id/assign', async (req, res) => {
+    try {
+        const uid = parseInt(req.params.id);
+        const { trainerId } = req.body;
+        await prisma.member.update({
+            where: { userId: uid },
+            data: { trainerId: trainerId ? parseInt(trainerId) : null }
+        });
+        res.json({ message: 'Trainer assigned successfully' });
+    } catch (err) {
+        console.error('Assign trainer error:', err);
+        res.status(500).json({ message: 'Failed to assign trainer' });
     }
 });
 
@@ -344,6 +372,7 @@ router.post('/trainers', async (req, res) => {
             specialization, specializations, trainerType, experience,
             salary, gymJoinDate, successRate,
             certificates, fitnessJourney, termsConditions, photo,
+            age, isActive,
         } = req.body;
 
         if (!name || !email || !password) return res.status(400).json({ message: 'Name, email and password required' });
@@ -372,6 +401,8 @@ router.post('/trainers', async (req, res) => {
                         certificates: Array.isArray(certificates) ? certificates : [],
                         fitnessJourney: fitnessJourney || null,
                         termsConditions: termsConditions || null,
+                        age: age ? parseInt(age) : null,
+                        isActive: isActive !== undefined ? Boolean(isActive) : true,
                     }
                 }
             },
@@ -395,6 +426,7 @@ router.put('/trainers/:id', async (req, res) => {
             specialization, specializations, trainerType, experience,
             salary, gymJoinDate, successRate,
             certificates, fitnessJourney, termsConditions, photo,
+            age, isActive,
         } = req.body;
 
         await prisma.$transaction([
@@ -418,6 +450,8 @@ router.put('/trainers/:id', async (req, res) => {
                     certificates: Array.isArray(certificates) ? certificates : undefined,
                     fitnessJourney: fitnessJourney ?? undefined,
                     termsConditions: termsConditions ?? undefined,
+                    age: age ? parseInt(age) : undefined,
+                    isActive: isActive !== undefined ? Boolean(isActive) : undefined,
                 }
             })
         ]);
