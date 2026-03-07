@@ -13,9 +13,17 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip);
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const GOAL_LABELS = { weight_loss: 'Weight Loss', muscle_gain: 'Muscle Gain', endurance: 'Endurance' };
 
+// Group WorkoutExercise list by day-name (day 1 = Monday, etc.)
+const groupByDay = (exercises = []) =>
+    DAYS.reduce((acc, name, idx) => {
+        acc[name] = exercises.filter(ex => ex.day === idx + 1);
+        return acc;
+    }, {});
+
 export default function MemberDashboard() {
     const { user } = useAuth();
     const [grouped, setGrouped] = useState({});
+    const [activePlan, setActivePlan] = useState(null);
     const [attendance, setAttendance] = useState([]);
     const [classes, setClasses] = useState([]);
     const [activeDay, setActiveDay] = useState('Monday');
@@ -31,7 +39,11 @@ export default function MemberDashboard() {
             api.get('/member/attendance'),
             api.get('/member/classes'),
         ]).then(([w, a, c]) => {
-            setGrouped(w.data.grouped || {});
+            // API returns { plans: [...] }, pick the best plan
+            const plans = w.data.plans || [];
+            const best = plans.find(p => p.status === 'active') || plans.find(p => p.status === 'pending') || null;
+            setActivePlan(best);
+            setGrouped(best ? groupByDay(best.exercises) : {});
             setAttendance(a.data.attendance || []);
             setClasses(c.data.classes || []);
         }).catch(console.error).finally(() => setLoading(false));
@@ -78,7 +90,7 @@ export default function MemberDashboard() {
         <DashboardShell title="Dashboard">
             <div className={`fade-up ${mounted ? 'visible' : ''}`}>
                 {/* Header */}
-                <div style={{ marginBottom: 28 }}>
+                <div style={{ marginBottom: 20 }}>
                     <h1 className="page-title">My Dashboard</h1>
                     <p className="page-subtitle">
                         {user?.member?.trainer?.user?.name ? (
@@ -88,6 +100,23 @@ export default function MemberDashboard() {
                         )}
                     </p>
                 </div>
+
+                {/* Plan status banner */}
+                {activePlan?.status === 'pending' && (
+                    <div style={{ background: 'rgba(208,152,48,0.08)', border: '1px solid rgba(208,152,48,0.25)', borderRadius: 10, padding: '12px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <ClipboardDocumentListIcon style={{ width: 18, height: 18, color: '#d09830', flexShrink: 0 }} />
+                        <div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#d09830' }}>Your AI Workout Plan is Pending Trainer Review</div>
+                            <div style={{ fontSize: '0.65rem', color: 'rgba(208,152,48,0.6)', marginTop: 2 }}>Your trainer will review and finalize the plan. It will appear below once approved.</div>
+                        </div>
+                    </div>
+                )}
+                {activePlan?.status === 'active' && (
+                    <div style={{ background: 'rgba(77,168,112,0.07)', border: '1px solid rgba(77,168,112,0.22)', borderRadius: 10, padding: '10px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <CheckCircleIcon style={{ width: 16, height: 16, color: '#4da870', flexShrink: 0 }} />
+                        <div style={{ fontSize: '0.72rem', color: '#4da870', fontWeight: 600 }}>Active Plan: {activePlan.name}</div>
+                    </div>
+                )}
 
                 {/* Stats */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 14, marginBottom: 28 }}>
@@ -127,16 +156,15 @@ export default function MemberDashboard() {
                                 </div>
                             ) : todayPlan.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '36px 20px', color: 'rgba(255,255,255,0.25)', fontSize: '0.9rem' }}>💤 Rest day</div>
-                            ) : todayPlan.map(p => (
-                                <div key={p.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                            ) : todayPlan.map(ex => (
+                                <div key={ex.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                                     <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.9rem' }}>{p.exercise.name}</div>
-                                        <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', marginTop: 3, textTransform: 'capitalize' }}>{p.exercise.muscleGroup}</div>
-                                        {p.exercise.instructions && <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.25)', marginTop: 6, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.exercise.instructions}</div>}
-                                        {p.exercise.videoUrl && <a href={p.exercise.videoUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.7rem', color: '#ff5020', marginTop: 6, textDecoration: 'none' }}>▶ Watch Demo</a>}
+                                        <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.9rem' }}>{ex.name}</div>
+                                        <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', marginTop: 3, textTransform: 'capitalize' }}>{ex.targetMuscle}</div>
+                                        {ex.instructions && <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.25)', marginTop: 6, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{ex.instructions}</div>}
                                     </div>
                                     <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                                        {[{ v: p.sets, l: 'Sets', c: '#ff5020' }, { v: p.reps, l: 'Reps', c: '#fb923c' }].map(b => (
+                                        {[{ v: ex.sets, l: 'Sets', c: '#ff5020' }, { v: ex.reps, l: 'Reps', c: '#fb923c' }].map(b => (
                                             <div key={b.l} style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: '8px 12px', textAlign: 'center' }}>
                                                 <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '1.5rem', color: b.c, lineHeight: 1 }}>{b.v}</div>
                                                 <div style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 2 }}>{b.l}</div>

@@ -1,167 +1,283 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardShell from '../../components/layout/DashboardShell';
 import api from '../../utils/api';
-import { UsersIcon, ClipboardDocumentListIcon, PlusIcon, TrashIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { UsersIcon, ClipboardDocumentListIcon, SparklesIcon, ClockIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+const T = {
+    bg: '#080808', card: '#101010',
+    border: '#1a1a1a', borderMid: '#252525',
+    hi: '#efefef', text: '#c8c8c8', muted: '#484848', faint: '#262626',
+    acc: '#f1642a', accDim: 'rgba(241,100,42,0.09)', accBorder: 'rgba(241,100,42,0.22)',
+    amber: '#d09830', amberDim: 'rgba(208,152,48,0.09)', amberBorder: 'rgba(208,152,48,0.25)',
+    green: '#4da870', greenDim: 'rgba(77,168,112,0.09)', greenBorder: 'rgba(77,168,112,0.22)',
+    mono: "'Space Mono', monospace",
+    disp: "'Bebas Neue', sans-serif",
+};
+
 export default function TrainerDashboard() {
+    const navigate = useNavigate();
     const [members, setMembers] = useState([]);
-    const [exercises, setExercises] = useState([]);
+    const [pendingPlans, setPendingPlans] = useState([]);
     const [selected, setSelected] = useState(null);
-    const [plan, setPlan] = useState([]);
-    const [form, setForm] = useState({ exerciseId: '', day: 'Monday', sets: 3, reps: 12 });
-    const [adding, setAdding] = useState(false);
-    const [generating, setGenerating] = useState(false);
+    const [plansByDay, setPlansByDay] = useState({});
+    const [activeDay, setActiveDay] = useState('Monday');
     const [mounted, setMounted] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => { setTimeout(() => setMounted(true), 80); }, []);
 
     useEffect(() => {
-        api.get('/trainer/members').then(r => setMembers(r.data.members)).catch(console.error);
-        api.get('/trainer/exercises').then(r => setExercises(r.data.exercises)).catch(console.error);
+        const loadData = async () => {
+            try {
+                const [membersRes, pendingRes] = await Promise.all([
+                    api.get('/trainer/members'),
+                    api.get('/workouts/pending'),
+                ]);
+                setMembers(membersRes.data.members || []);
+                setPendingPlans(pendingRes.data.plans || []);
+            } catch (err) {
+                console.error('Trainer dashboard load failed:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadData();
     }, []);
 
-    const loadPlan = async (mid) => {
-        const r = await api.get(`/trainer/workouts/${mid}`);
-        setPlan(r.data.plans);
+    const selectMember = (m) => {
+        setSelected(m);
+        setActiveDay('Monday');
+
+        // Get their latest active/pending plan's exercises grouped by day
+        const activePlan = m.workoutPlans?.find(p => p.status === 'active')
+            || m.workoutPlans?.find(p => p.status === 'pending');
+
+        if (activePlan?.exercises) {
+            const grouped = DAYS.reduce((acc, day) => {
+                acc[day] = activePlan.exercises.filter(ex => ex.day === DAYS.indexOf(day) + 1);
+                return acc;
+            }, {});
+            setPlansByDay(grouped);
+        } else {
+            setPlansByDay({});
+        }
     };
 
-    const selectMember = (m) => { setSelected(m); loadPlan(m.id); };
+    const memberHasPending = (m) =>
+        pendingPlans.some(p => p.memberId === m.id);
 
-    const handleAdd = async (e) => {
-        e.preventDefault();
-        if (!selected || !form.exerciseId) return;
-        setAdding(true);
-        try {
-            await api.post('/trainer/workouts', { memberId: selected.id, ...form });
-            await loadPlan(selected.id);
-            setForm({ exerciseId: '', day: 'Monday', sets: 3, reps: 12 });
-        } catch (err) { console.error(err); } finally { setAdding(false); }
-    };
+    const selectedActivePlan = selected?.workoutPlans?.find(p => p.status === 'active')
+        || selected?.workoutPlans?.find(p => p.status === 'pending');
 
-    const removePlan = async (id) => {
-        await api.delete(`/trainer/workouts/${id}`);
-        setPlan(p => p.filter(x => x.id !== id));
-    };
-
-    const generate = async () => {
-        if (!selected) return;
-        setGenerating(true);
-        try {
-            await api.post('/workouts/generate', { memberId: selected.id, experienceLevel: 'intermediate' });
-            await loadPlan(selected.id);
-        } catch (err) { console.error(err); } finally { setGenerating(false); }
-    };
-
-    const planByDay = DAYS.reduce((a, d) => { a[d] = plan.filter(p => p.day === d); return a; }, {});
+    const todayExercises = plansByDay[activeDay] || [];
 
     return (
         <DashboardShell title="Trainer">
-            <div className={`fade-up ${mounted ? 'visible' : ''}`}>
+            <style>{`
+                .t-fade { opacity:0; transform:translateY(10px); transition:all 0.4s ease; }
+                .t-fade.in { opacity:1; transform:none; }
+                .member-btn { text-align:left; width:100%; padding:10px 12px; border-radius:8px; cursor:pointer; border:1px solid transparent; transition:all 0.15s; background:transparent; }
+                .member-btn:hover { background:rgba(255,255,255,0.04); border-color:${T.border}; }
+                .member-btn.active { background:rgba(241,100,42,0.09); border-color:rgba(241,100,42,0.3); }
+                @keyframes spin { to { transform: rotate(360deg); } }
+            `}</style>
+
+            <div className={`t-fade${mounted ? ' in' : ''}`}>
+
+                {/* ── Header ── */}
                 <div style={{ marginBottom: 28 }}>
-                    <h1 className="page-title">Trainer Hub</h1>
-                    <p className="page-subtitle">Build and manage personalized workout plans</p>
+                    <div style={{ fontFamily: T.mono, fontSize: '0.52rem', color: T.acc, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 6 }}>// trainer portal</div>
+                    <h1 style={{ fontFamily: T.disp, fontSize: '2.4rem', color: T.hi, letterSpacing: '0.04em', lineHeight: 1 }}>Trainer Hub</h1>
+                    <p style={{ fontFamily: T.mono, fontSize: '0.65rem', color: T.muted, marginTop: 6 }}>Manage member workout plans and pending approvals</p>
                 </div>
 
-                {/* Stats */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginBottom: 28, maxWidth: 480 }}>
+                {/* ── Stats ── */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 24 }}>
                     {[
-                        { label: 'My Members', val: members.length, color: '#fb923c' },
-                        { label: 'Plan Entries', val: plan.length, color: '#ff5020' },
+                        { label: 'My Members', val: members.length, color: T.acc, icon: UsersIcon },
+                        { label: 'Pending Approvals', val: pendingPlans.length, color: T.amber, icon: ClockIcon },
+                        { label: 'Active Plans', val: members.filter(m => m.workoutPlans?.some(p => p.status === 'active')).length, color: T.green, icon: CheckCircleIcon },
                     ].map(s => (
-                        <div key={s.label} style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,120,0,0.2)', borderRadius: 12, padding: '16px 20px' }}>
-                            <div className="stat-label">{s.label}</div>
-                            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', color: s.color, letterSpacing: '0.04em' }}>{s.val}</div>
+                        <div key={s.label} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                            <s.icon style={{ width: 22, height: 22, color: s.color, flexShrink: 0 }} />
+                            <div>
+                                <div style={{ fontFamily: T.mono, fontSize: '0.55rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: T.muted }}>{s.label}</div>
+                                <div style={{ fontFamily: T.disp, fontSize: '2rem', color: s.color, lineHeight: 1, marginTop: 2 }}>{loading ? '…' : s.val}</div>
+                            </div>
                         </div>
                     ))}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 20 }}>
-                    {/* Member list */}
-                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, overflow: 'hidden' }}>
-                        <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                            <span className="section-title">Members</span>
+                {/* ── Pending Approvals Banner ── */}
+                {pendingPlans.length > 0 && (
+                    <div
+                        onClick={() => navigate('/manage-workouts')}
+                        style={{
+                            background: T.amberDim, border: `1px solid ${T.amberBorder}`,
+                            borderRadius: 8, padding: '14px 20px', marginBottom: 24,
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            transition: 'all 0.15s',
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <ClockIcon style={{ width: 20, color: T.amber, flexShrink: 0 }} />
+                            <div>
+                                <div style={{ fontFamily: T.mono, fontSize: '0.65rem', fontWeight: 700, color: T.amber }}>
+                                    {pendingPlans.length} AI-GENERATED PLAN{pendingPlans.length > 1 ? 'S' : ''} AWAITING YOUR REVIEW
+                                </div>
+                                <div style={{ fontFamily: T.mono, fontSize: '0.58rem', color: 'rgba(208,152,48,0.6)', marginTop: 3 }}>
+                                    Click to open the review editor → finalize &amp; assign to member
+                                </div>
+                            </div>
                         </div>
-                        <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 520, overflowY: 'auto' }}>
-                            {members.length === 0 ? (
-                                <p style={{ textAlign: 'center', padding: 24, fontSize: '0.78rem', color: 'rgba(255,255,255,0.2)' }}>No members assigned</p>
-                            ) : members.map(m => (
-                                <button key={m.id} onClick={() => selectMember(m)} style={{
-                                    textAlign: 'left', padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
-                                    background: selected?.id === m.id ? 'rgba(255,100,0,0.12)' : 'transparent',
-                                    border: `1px solid ${selected?.id === m.id ? 'rgba(255,80,20,0.3)' : 'transparent'}`,
-                                    transition: 'all 0.15s',
-                                }}>
-                                    <div style={{ fontSize: '0.84rem', fontWeight: 600, color: selected?.id === m.id ? '#ff7040' : '#ccc' }}>{m.user?.name || m.name}</div>
-                                    <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', marginTop: 2, textTransform: 'capitalize' }}>{m.fitnessGoal?.replace('_', ' ')}</div>
-                                </button>
-                            ))}
+                        <div style={{ fontFamily: T.disp, fontSize: '1rem', color: T.amber, letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>
+                            REVIEW PLANS →
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Main Grid: Member List + Plan View ── */}
+                <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 20 }}>
+
+                    {/* Member List */}
+                    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, overflow: 'hidden' }}>
+                        <div style={{ padding: '13px 16px', borderBottom: `1px solid ${T.border}`, fontFamily: T.disp, fontSize: '1rem', color: T.hi, letterSpacing: '0.08em' }}>
+                            MEMBERS
+                        </div>
+                        <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 480, overflowY: 'auto' }}>
+                            {loading ? (
+                                <p style={{ textAlign: 'center', padding: 24, fontSize: '0.75rem', color: T.muted, fontFamily: T.mono }}>Loading…</p>
+                            ) : members.length === 0 ? (
+                                <p style={{ textAlign: 'center', padding: 24, fontSize: '0.75rem', color: T.muted, fontFamily: T.mono }}>No members assigned</p>
+                            ) : members.map(m => {
+                                const hasPending = memberHasPending(m);
+                                const hasActive = m.workoutPlans?.some(p => p.status === 'active');
+                                return (
+                                    <button key={m.id} className={`member-btn${selected?.id === m.id ? ' active' : ''}`} onClick={() => selectMember(m)}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                            <div style={{ fontSize: '0.84rem', fontWeight: 600, color: selected?.id === m.id ? '#ff7040' : T.text }}>
+                                                {m.user?.name || m.name}
+                                            </div>
+                                            {hasPending && (
+                                                <span style={{ background: T.amberDim, border: `1px solid ${T.amberBorder}`, color: T.amber, fontFamily: T.mono, fontSize: '0.48rem', fontWeight: 700, padding: '2px 6px', borderRadius: 2, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                                                    PENDING
+                                                </span>
+                                            )}
+                                            {!hasPending && hasActive && (
+                                                <span style={{ background: T.greenDim, border: `1px solid ${T.greenBorder}`, color: T.green, fontFamily: T.mono, fontSize: '0.48rem', fontWeight: 700, padding: '2px 6px', borderRadius: 2, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                                                    ACTIVE
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div style={{ fontSize: '0.67rem', color: T.muted, marginTop: 2, textTransform: 'capitalize' }}>
+                                            {m.fitnessGoal?.replace('_', ' ')}
+                                        </div>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 
-                    {/* Plan builder */}
+                    {/* Plan View */}
                     <div>
                         {!selected ? (
-                            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 60, textAlign: 'center', color: 'rgba(255,255,255,0.18)', fontSize: '0.9rem' }}>
-                                ← Select a member to build their plan
+                            <div style={{ background: T.card, border: `1px dashed ${T.border}`, borderRadius: 12, padding: 60, textAlign: 'center', color: T.muted, fontFamily: T.mono, fontSize: '0.85rem' }}>
+                                ← Select a member to view their workout plan
                             </div>
                         ) : (
                             <>
-                                {/* Controls */}
-                                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '18px 20px', marginBottom: 16 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                                        <div>
-                                            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.2rem', color: '#fff' }}>Plan: </span>
-                                            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.2rem', color: '#ff6030' }}>{selected.user?.name || selected.name}</span>
+                                {/* Member header */}
+                                <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: '16px 20px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <div>
+                                        <div style={{ fontFamily: T.disp, fontSize: '1.5rem', color: T.hi, letterSpacing: '0.06em' }}>{selected.user?.name}</div>
+                                        <div style={{ fontFamily: T.mono, fontSize: '0.62rem', color: T.muted, marginTop: 3 }}>
+                                            Goal: {selected.fitnessGoal?.replace('_', ' ')} · Plan: {selectedActivePlan?.name || 'No plan yet'}
+                                            {selectedActivePlan?.status === 'pending' && (
+                                                <span style={{ marginLeft: 8, color: T.amber, fontWeight: 700 }}>( PENDING REVIEW )</span>
+                                            )}
                                         </div>
-                                        <button onClick={generate} disabled={generating} className="btn btn-primary btn-sm" style={{ gap: 6 }}>
-                                            {generating ? <span className="spinner" /> : <SparklesIcon style={{ width: 14, height: 14 }} />}
-                                            AI Generate
-                                        </button>
                                     </div>
-                                    <form onSubmit={handleAdd} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto auto', gap: 8, alignItems: 'center' }}>
-                                        <select value={form.exerciseId} onChange={e => setForm({ ...form, exerciseId: e.target.value })} className="input-field" style={{ fontSize: '0.82rem', paddingTop: 8, paddingBottom: 8 }}>
-                                            <option value="">Select Exercise…</option>
-                                            {exercises.map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
-                                        </select>
-                                        <select value={form.day} onChange={e => setForm({ ...form, day: e.target.value })} className="input-field" style={{ fontSize: '0.82rem', paddingTop: 8, paddingBottom: 8, width: 'auto' }}>
-                                            {DAYS.map(d => <option key={d}>{d}</option>)}
-                                        </select>
-                                        <input type="number" value={form.sets} onChange={e => setForm({ ...form, sets: +e.target.value })} placeholder="Sets" className="input-field" style={{ width: 65, fontSize: '0.82rem', paddingTop: 8, paddingBottom: 8, textAlign: 'center' }} />
-                                        <input type="number" value={form.reps} onChange={e => setForm({ ...form, reps: +e.target.value })} placeholder="Reps" className="input-field" style={{ width: 65, fontSize: '0.82rem', paddingTop: 8, paddingBottom: 8, textAlign: 'center' }} />
-                                        <button type="submit" disabled={adding} className="btn btn-primary btn-sm">
-                                            {adding ? <span className="spinner" /> : <PlusIcon style={{ width: 14, height: 14 }} />}
+                                    {selectedActivePlan?.status === 'pending' && (
+                                        <button
+                                            onClick={() => navigate('/manage-workouts')}
+                                            style={{ background: T.amber, border: 'none', borderRadius: 6, padding: '8px 18px', fontFamily: T.mono, fontSize: '0.7rem', fontWeight: 700, color: '#000', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+                                        >
+                                            <ClipboardDocumentListIcon style={{ width: 16 }} />
+                                            REVIEW & APPROVE
                                         </button>
-                                    </form>
+                                    )}
+                                    {selectedActivePlan?.status === 'active' && (
+                                        <button
+                                            onClick={() => navigate('/manage-workouts')}
+                                            style={{ background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 6, padding: '8px 18px', fontFamily: T.mono, fontSize: '0.7rem', color: T.muted, cursor: 'pointer' }}
+                                        >
+                                            EDIT PLAN
+                                        </button>
+                                    )}
                                 </div>
 
-                                {/* Days grid */}
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                                    {DAYS.map(day => (
-                                        <div key={day} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, overflow: 'hidden' }}>
-                                            <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '0.95rem', color: '#fff', letterSpacing: '0.06em' }}>{day}</span>
-                                                <span style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.25)' }}>{planByDay[day].length}</span>
-                                            </div>
-                                            <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 4, minHeight: 40 }}>
-                                                {planByDay[day].length === 0 ? (
-                                                    <p style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.18)', textAlign: 'center', padding: '6px 0' }}>Rest</p>
-                                                ) : planByDay[day].map(p => (
-                                                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 7 }}>
-                                                        <div>
-                                                            <span style={{ fontSize: '0.75rem', color: '#ddd', fontWeight: 500 }}>{p.exercise.name}</span>
-                                                            <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', marginLeft: 6 }}>{p.sets}×{p.reps}</span>
-                                                        </div>
-                                                        <button onClick={() => removePlan(p.id)} style={{ color: 'rgba(255,60,60,0.6)', background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-                                                            <TrashIcon style={{ width: 12, height: 12 }} />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                {/* No plan state */}
+                                {!selectedActivePlan ? (
+                                    <div style={{ background: T.card, border: `1px dashed ${T.border}`, borderRadius: 12, padding: 48, textAlign: 'center' }}>
+                                        <SparklesIcon style={{ width: 36, color: T.faint, margin: '0 auto 12px', opacity: 0.4 }} />
+                                        <div style={{ fontFamily: T.mono, fontSize: '0.8rem', color: T.muted }}>No workout plan yet for this member.</div>
+                                        <div style={{ fontFamily: T.mono, fontSize: '0.65rem', color: T.faint, marginTop: 6 }}>Ask the member to request a plan from their dashboard.</div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Day tabs */}
+                                        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                                            {DAYS.map(day => (
+                                                <button
+                                                    key={day}
+                                                    onClick={() => setActiveDay(day)}
+                                                    style={{
+                                                        padding: '6px 16px', borderRadius: 6, fontFamily: T.mono, fontSize: '0.67rem', fontWeight: 700,
+                                                        textTransform: 'uppercase', cursor: 'pointer', border: '1px solid',
+                                                        background: activeDay === day ? T.acc : 'transparent',
+                                                        borderColor: activeDay === day ? T.acc : T.border,
+                                                        color: activeDay === day ? '#fff' : T.muted,
+                                                        transition: 'all 0.13s',
+                                                    }}
+                                                >
+                                                    {day.slice(0, 3)}
+                                                </button>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
+
+                                        {/* Exercises */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                            {todayExercises.length === 0 ? (
+                                                <div style={{ background: T.card, border: `1px dashed ${T.border}`, borderRadius: 10, padding: '28px 20px', textAlign: 'center', fontFamily: T.mono, fontSize: '0.75rem', color: T.muted }}>
+                                                    💤 Rest day
+                                                </div>
+                                            ) : todayExercises.map(ex => (
+                                                <div key={ex.id} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <div style={{ fontSize: '0.9rem', fontWeight: 600, color: T.hi }}>{ex.name}</div>
+                                                        <div style={{ fontSize: '0.68rem', color: T.muted, marginTop: 2, textTransform: 'capitalize' }}>{ex.targetMuscle}</div>
+                                                        {ex.instructions && (
+                                                            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', marginTop: 6, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                                                {ex.instructions}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                                                        {[{ v: ex.sets, l: 'Sets', c: T.acc }, { v: ex.reps, l: 'Reps', c: '#fb923c' }].map(b => (
+                                                            <div key={b.l} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '8px 14px', textAlign: 'center' }}>
+                                                                <div style={{ fontFamily: T.disp, fontSize: '1.5rem', color: b.c, lineHeight: 1 }}>{b.v}</div>
+                                                                <div style={{ fontFamily: T.mono, fontSize: '0.54rem', color: T.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{b.l}</div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
                             </>
                         )}
                     </div>
