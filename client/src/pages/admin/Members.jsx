@@ -726,10 +726,35 @@ export default function Members() {
                                     <div><ModalLabel>Email *</ModalLabel><InputField type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="email@example.com" required /></div>
                                     <div style={{ position: 'relative' }}>
                                         <ModalLabel>Password *</ModalLabel>
-                                        <InputField type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Min 6 characters" required style={{ paddingRight: 36 }} />
-                                        <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 8, top: 30, background: 'none', border: 'none', cursor: 'pointer', color: showPassword ? T.acc : T.muted, display: 'flex', padding: 4 }}>
-                                            {showPassword ? <EyeSlashIcon style={{ width: 14 }} /> : <EyeIcon style={{ width: 14 }} />}
-                                        </button>
+                                        <div style={{ position: 'relative' }}>
+                                            <InputField
+                                                type={showPassword ? 'text' : 'password'}
+                                                value={form.password}
+                                                onChange={e => setForm({ ...form, password: e.target.value })}
+                                                placeholder="Min 6 characters"
+                                                required
+                                                style={{ paddingRight: 38 }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                style={{
+                                                    position: 'absolute',
+                                                    right: 8,
+                                                    top: '50%',
+                                                    transform: 'translateY(-50%)',
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    color: showPassword ? T.acc : T.muted,
+                                                    display: 'flex',
+                                                    padding: 6,
+                                                    zIndex: 10
+                                                }}
+                                            >
+                                                {showPassword ? <EyeSlashIcon style={{ width: 15 }} /> : <EyeIcon style={{ width: 15 }} />}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
 
