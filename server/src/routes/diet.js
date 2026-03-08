@@ -283,6 +283,23 @@ router.put('/plan/:id/finalize', requireRole('trainer', 'admin'), async (req, re
             });
         }
 
+        // Create Notification for the member
+        const memberUser = await prisma.member.findUnique({
+            where: { id: plan.memberId },
+            select: { userId: true }
+        });
+
+        if (memberUser) {
+            await prisma.notification.create({
+                data: {
+                    userId: memberUser.userId,
+                    title: 'Diet Plan Ready',
+                    message: `Your personalized nutrition strategy "${plan.name}" has been finalized and is now active.`,
+                    type: 'DIET'
+                }
+            });
+        }
+
         res.json({ message: 'Diet plan finalized and activated!' });
     } catch (err) {
         res.status(500).json({ message: 'Failed to finalize diet plan' });

@@ -23,9 +23,10 @@ model User {
   role      Role     @default(member)
   createdAt DateTime @default(now())
 
-  member     Member?
-  trainer    Trainer?
-  attendance Attendance[]
+  member        Member?
+  trainer       Trainer?
+  attendance    Attendance[]
+  notifications Notification[]
 }
 
 enum AttendanceStatus {
@@ -351,3 +352,18 @@ model DietMeal {
   plan             DietPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
 }
 
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  title     String
+  message   String
+  type      String   // EXPIRY, OFFER, CLASS, WORKOUT, SYSTEM
+  status    String   @default("UNREAD") // UNREAD, READ
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}

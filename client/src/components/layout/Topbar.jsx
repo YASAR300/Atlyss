@@ -6,9 +6,10 @@ import {
     ClipboardDocumentListIcon, CalendarIcon,
     ArrowLeftOnRectangleIcon, ChartBarIcon,
     Bars3Icon, XMarkIcon, UserCircleIcon, Cog6ToothIcon, FingerPrintIcon,
-    SparklesIcon, ClipboardDocumentCheckIcon
+    SparklesIcon, ClipboardDocumentCheckIcon, CalculatorIcon
 } from '@heroicons/react/24/outline';
 import logo from '../../assets/logo.png';
+import NotificationCenter from './NotificationCenter';
 
 const roleLinks = {
     admin: [
@@ -31,6 +32,7 @@ const roleLinks = {
         { name: 'Diet Plan', path: '/diet-plan', icon: SparklesIcon },
         { name: 'Classes', path: '/classes', icon: CalendarIcon },
         { name: 'Progress', path: '/progress', icon: ChartBarIcon },
+        { name: 'Calculator', path: '/calorie-calculator', icon: CalculatorIcon },
     ],
 };
 
@@ -360,6 +362,7 @@ export default function Topbar() {
 
                 {/* Right cluster */}
                 <div className="topbar-right">
+                    {user && <NotificationCenter />}
 
                     {/* Role badge */}
                     {user && (

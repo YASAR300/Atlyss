@@ -25,6 +25,7 @@ import AdminProfile from './pages/admin/AdminProfile';
 import AttendancePage from './pages/AttendancePage';
 import DietPlan from './pages/member/DietPlan';
 import ManageDiets from './pages/trainer/ManageDiets';
+import CalorieCalculatorPage from './pages/member/CalorieCalculatorPage';
 
 const ProfileRedirect = () => {
   const { user } = useAuth();
@@ -138,6 +139,11 @@ function App() {
           <Route path="/progress" element={
             <ProtectedRoute roles={['member']}>
               <MemberProgress />
+            </ProtectedRoute>
+          } />
+          <Route path="/calorie-calculator" element={
+            <ProtectedRoute roles={['member']}>
+              <CalorieCalculatorPage />
             </ProtectedRoute>
           } />
           <Route path="/trainer/members/:memberId/progress" element={

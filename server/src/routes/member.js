@@ -44,6 +44,57 @@ router.get('/profile', async (req, res) => {
             }
         });
         if (!user) return res.status(404).json({ message: 'User not found' });
+
+        // Automated Membership Expiry Check
+        if (user.member && user.member.membershipDueDate) {
+            const dueDate = new Date(user.member.membershipDueDate);
+            const now = new Date();
+            const daysDiff = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+
+            if (daysDiff <= 3 && daysDiff >= 0) {
+                // Check if we already sent a reminder today
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const existing = await prisma.notification.findFirst({
+                    where: {
+                        userId: user.id,
+                        type: 'EXPIRY',
+                        createdAt: { gte: today },
+                        message: { contains: 'expiry in 3 days' }
+                    }
+                });
+
+                if (!existing) {
+                    await prisma.notification.create({
+                        data: {
+                            userId: user.id,
+                            title: 'Membership Renewal',
+                            message: `Your gym membership will expire in ${daysDiff} days. Please renew to continue your workouts.`,
+                            type: 'EXPIRY'
+                        }
+                    });
+                }
+            } else if (daysDiff < 0) {
+                const existing = await prisma.notification.findFirst({
+                    where: {
+                        userId: user.id,
+                        type: 'EXPIRY',
+                        message: { contains: 'has expired' }
+                    }
+                });
+                if (!existing) {
+                    await prisma.notification.create({
+                        data: {
+                            userId: user.id,
+                            title: 'Membership Expired',
+                            message: 'Your gym membership has expired. Renew now to continue accessing facilities.',
+                            type: 'EXPIRY'
+                        }
+                    });
+                }
+            }
+        }
+
         const { password, ...u } = user;
         res.json({ user: u });
     } catch (err) {

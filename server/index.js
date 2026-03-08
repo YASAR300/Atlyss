@@ -11,6 +11,7 @@ const memberRoutes = require('./src/routes/member');
 const workoutRoutes = require('./src/routes/workout');
 const attendanceRoutes = require('./src/routes/attendance');
 const dietRoutes = require('./src/routes/diet');
+const notificationRoutes = require('./src/routes/notifications');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -61,6 +62,7 @@ app.use('/api/member', memberRoutes);
 app.use('/api/workouts', workoutRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/diet', dietRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'Atlyss Server Running 🚀', timestamp: new Date() });
