@@ -7,7 +7,8 @@ import {
     UserIcon, PhoneIcon, CalendarIcon,
     PlusIcon, ClipboardDocumentListIcon,
     CheckCircleIcon, ClockIcon, ExclamationCircleIcon,
-    SparklesIcon, ArrowPathIcon
+    SparklesIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon,
+    PencilSquareIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
 
@@ -170,9 +171,8 @@ export default function Members() {
     const [filters, setFilters] = useState({ search: '', membership: '', page: 1 });
     const [loading, setLoading] = useState(true);
     const [mounted, setMounted] = useState(false);
-
-    // Modals
     const [showModal, setShowModal] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const [form, setForm] = useState(BLANK_FORM);
     const [selectedMember, setSelectedMember] = useState(null); // for detail drawer
     const [showMeasModal, setShowMeasModal] = useState(false);
@@ -645,10 +645,10 @@ export default function Members() {
                                                                 <div style={{ fontFamily: T.mono, fontSize: '0.5rem', color: T.acc, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 8 }}>// plan entries (request)</div>
                                                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
                                                                     {[
-                                                                        ['Target Focus', plan.request.targetFocus],
-                                                                        ['Experience', plan.request.experienceLevel],
-                                                                        ['Days/Week', plan.request.daysPerWeek],
-                                                                        ['Intensity', plan.request.intensity],
+                                                                        ['Target Focus', plan.request.targetFocus || '—'],
+                                                                        ['Experience', plan.request.experienceLevel || '—'],
+                                                                        ['Days/Week', plan.request.daysPerWeek || '—'],
+                                                                        ['Intensity', plan.request.intensity || '—'],
                                                                         ['Equipment', plan.request.equipment?.join(', ') || 'None'],
                                                                         ['Injuries', plan.request.injuries || 'None'],
                                                                     ].map(([label, val]) => (
@@ -724,7 +724,13 @@ export default function Members() {
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                     <div style={{ gridColumn: 'span 2' }}><ModalLabel>Full Name *</ModalLabel><InputField value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Member Name" required /></div>
                                     <div><ModalLabel>Email *</ModalLabel><InputField type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="email@example.com" required /></div>
-                                    <div><ModalLabel>Password *</ModalLabel><InputField type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Min 6 characters" required /></div>
+                                    <div style={{ position: 'relative' }}>
+                                        <ModalLabel>Password *</ModalLabel>
+                                        <InputField type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Min 6 characters" required style={{ paddingRight: 36 }} />
+                                        <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 8, top: 30, background: 'none', border: 'none', cursor: 'pointer', color: showPassword ? T.acc : T.muted, display: 'flex', padding: 4 }}>
+                                            {showPassword ? <EyeSlashIcon style={{ width: 14 }} /> : <EyeIcon style={{ width: 14 }} />}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <FormSection label="Personal Info" />

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardShell from '../../components/layout/DashboardShell';
 import api from '../../utils/api';
-import { AcademicCapIcon, StarIcon, XMarkIcon, PlusIcon, PencilIcon, CameraIcon } from '@heroicons/react/24/outline';
+import { AcademicCapIcon, StarIcon, XMarkIcon, PlusIcon, PencilIcon, CameraIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
 
 const T = {
@@ -172,6 +172,7 @@ export default function Trainers() {
     const [loading, setLoading] = useState(true);
     const [mounted, setMounted] = useState(false);
     const [showModal, setShowModal] = useState(false);   // add new
+    const [showPassword, setShowPassword] = useState(false);
     const [editTrainer, setEditTrainer] = useState(null); // edit drawer
     const [form, setForm] = useState(BLANK_FORM);
     const [saving, setSaving] = useState(false);
@@ -571,7 +572,13 @@ export default function Trainers() {
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                     <div style={{ gridColumn: 'span 2' }}><ModalLabel>Full Name *</ModalLabel><InputField value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required /></div>
                                     <div><ModalLabel>Email *</ModalLabel><InputField type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required /></div>
-                                    <div><ModalLabel>Password *</ModalLabel><InputField type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required /></div>
+                                    <div style={{ position: 'relative' }}>
+                                        <ModalLabel>Password *</ModalLabel>
+                                        <InputField type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required style={{ paddingRight: 36 }} />
+                                        <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 8, top: 30, background: 'none', border: 'none', cursor: 'pointer', color: showPassword ? T.acc : T.muted, display: 'flex', padding: 4 }}>
+                                            {showPassword ? <EyeSlashIcon style={{ width: 14 }} /> : <EyeIcon style={{ width: 14 }} />}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <FormSection label="Personal" />

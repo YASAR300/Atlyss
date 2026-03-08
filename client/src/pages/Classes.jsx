@@ -230,24 +230,27 @@ export default function Classes() {
                                         {user?.role === 'member' && (
                                             <button
                                                 onClick={() => bookClass(cls.id)}
-                                                disabled={isFull || booking === cls.id}
+                                                disabled={isFull || cls.isBooked || booking === cls.id}
                                                 style={{
                                                     width: '100%', padding: '9px', borderRadius: 3,
-                                                    background: isFull ? 'transparent' : T.acc,
-                                                    border: `1px solid ${isFull ? T.borderMid : T.acc}`,
+                                                    background: cls.isBooked ? T.greenDim : (isFull ? 'transparent' : T.acc),
+                                                    border: `1px solid ${cls.isBooked ? T.greenBorder : (isFull ? T.borderMid : T.acc)}`,
                                                     fontFamily: T.mono, fontSize: '0.7rem', fontWeight: 700,
                                                     letterSpacing: '0.09em', textTransform: 'uppercase',
-                                                    color: isFull ? T.muted : '#fff', cursor: isFull ? 'not-allowed' : 'pointer',
+                                                    color: cls.isBooked ? T.green : (isFull ? T.muted : '#fff'),
+                                                    cursor: (isFull || cls.isBooked) ? 'not-allowed' : 'pointer',
                                                     opacity: isFull ? 0.4 : 1,
                                                     transition: 'all 0.12s',
                                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                                                    boxShadow: isFull ? 'none' : '0 2px 10px rgba(241,100,42,0.18)',
+                                                    boxShadow: (isFull || cls.isBooked) ? 'none' : '0 2px 10px rgba(241,100,42,0.18)',
                                                 }}
-                                                onMouseEnter={e => { if (!isFull && booking !== cls.id) { e.currentTarget.style.background = '#e55a24'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
-                                                onMouseLeave={e => { e.currentTarget.style.background = isFull ? 'transparent' : T.acc; e.currentTarget.style.transform = 'none'; }}
+                                                onMouseEnter={e => { if (!isFull && !cls.isBooked && booking !== cls.id) { e.currentTarget.style.background = '#e55a24'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+                                                onMouseLeave={e => { e.currentTarget.style.background = cls.isBooked ? T.greenDim : (isFull ? 'transparent' : T.acc); e.currentTarget.style.transform = 'none'; }}
                                             >
                                                 {booking === cls.id ? (
                                                     <div style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                                ) : cls.isBooked ? (
+                                                    <span style={{ color: T.green }}>✓ Booked</span>
                                                 ) : isFull ? 'Class Full' : 'Book Now'}
                                             </button>
                                         )}

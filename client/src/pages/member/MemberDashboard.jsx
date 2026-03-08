@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardShell from '../../components/layout/DashboardShell';
 import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
@@ -21,6 +22,7 @@ const groupByDay = (exercises = []) =>
     }, {});
 
 export default function MemberDashboard() {
+    const navigate = useNavigate();
     const { user } = useAuth();
     const [grouped, setGrouped] = useState({});
     const [activePlan, setActivePlan] = useState(null);
@@ -150,9 +152,27 @@ export default function MemberDashboard() {
                         </div>
                         <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                             {totalExercises === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '48px 20px', color: 'rgba(255,255,255,0.18)' }}>
-                                    <ClipboardDocumentListIcon style={{ width: 40, height: 40, margin: '0 auto 12px', opacity: 0.2 }} />
-                                    <p style={{ fontSize: '0.85rem' }}>No workout plan yet. Ask your trainer!</p>
+                                <div style={{ textAlign: 'center', padding: '52px 20px' }}>
+                                    <ClipboardDocumentListIcon style={{ width: 44, height: 44, margin: '0 auto 16px', opacity: 0.15, color: '#fff' }} />
+                                    <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)', marginBottom: 20 }}>No workout plan set yet. Ask your trainer or create one yourself!</p>
+                                    <button
+                                        onClick={() => navigate('/workouts')}
+                                        style={{
+                                            background: 'rgba(255,255,255,0.05)',
+                                            border: '1px solid rgba(255,255,255,0.1)',
+                                            borderRadius: 6,
+                                            padding: '10px 24px',
+                                            color: '#fff',
+                                            fontFamily: "'Space Mono', monospace",
+                                            fontSize: '0.7rem',
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                            transition: '0.2s',
+                                            letterSpacing: '0.05em'
+                                        }}
+                                    >
+                                        GENERATE WORKOUT PLAN
+                                    </button>
                                 </div>
                             ) : todayPlan.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '36px 20px', color: 'rgba(255,255,255,0.25)', fontSize: '0.9rem' }}>💤 Rest day</div>

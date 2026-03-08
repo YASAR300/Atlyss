@@ -154,9 +154,33 @@ export default function Workouts() {
                             </div>
                         )}
                     </div>
-                    {!activePlan && !loading && (
-                        <button onClick={() => setShowRequestForm(true)} style={{ background: T.acc, border: 'none', borderRadius: 3, padding: '10px 20px', fontFamily: T.disp, fontSize: '1.1rem', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: '0.15s' }}>
-                            <SparklesIcon style={{ width: 18 }} /> Create Plan
+                    {!loading && (
+                        <button
+                            onClick={() => setShowRequestForm(true)}
+                            style={{
+                                background: activePlan ? 'transparent' : T.acc,
+                                border: activePlan ? `1px solid ${T.border}` : 'none',
+                                borderRadius: 3,
+                                padding: '10px 20px',
+                                fontFamily: T.disp,
+                                fontSize: '1.1rem',
+                                color: activePlan ? T.text : '#fff',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                transition: '0.15s'
+                            }}
+                        >
+                            {activePlan ? (
+                                <>
+                                    <ArrowPathIcon style={{ width: 18 }} /> GENERATE NEW PLAN
+                                </>
+                            ) : (
+                                <>
+                                    <SparklesIcon style={{ width: 18 }} /> CREATE PLAN
+                                </>
+                            )}
                         </button>
                     )}
                 </div>

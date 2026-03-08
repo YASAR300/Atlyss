@@ -33,7 +33,15 @@ router.get('/profile', async (req, res) => {
         const userId = req.user.id;
         const user = await prisma.user.findUnique({
             where: { id: userId },
-            include: { member: true }
+            include: {
+                member: {
+                    include: {
+                        trainer: {
+                            include: { user: { select: { id: true, name: true } } }
+                        }
+                    }
+                }
+            }
         });
         if (!user) return res.status(404).json({ message: 'User not found' });
         const { password, ...u } = user;
@@ -120,17 +128,32 @@ router.get('/attendance', async (req, res) => {
 // GET /api/member/classes — all available classes
 router.get('/classes', async (req, res) => {
     try {
+        const userId = req.user.id;
+        const member = await prisma.member.findUnique({ where: { userId } });
+
         const classes = await prisma.class.findMany({
             include: {
                 trainer: {
                     include: { user: { select: { name: true } } }
                 },
-                _count: { select: { attendance: true } }
+                _count: { select: { attendance: true } },
+                attendance: {
+                    where: { memberId: member?.id || 0 },
+                    select: { id: true }
+                }
             },
             orderBy: { scheduleTime: 'asc' }
         });
-        res.json({ classes });
+
+        // Add 'isBooked' flag for each class relative to this member
+        const processedClasses = classes.map(cls => ({
+            ...cls,
+            isBooked: (cls.attendance && cls.attendance.length > 0)
+        }));
+
+        res.json({ classes: processedClasses });
     } catch (err) {
+        console.error('Fetch member classes error:', err);
         res.status(500).json({ message: 'Failed to fetch classes' });
     }
 });
@@ -197,7 +220,7 @@ router.get('/trainers', async (req, res) => {
     }
 });
 
-// POST /api/member/review/:trainerId — submit a review for a trainer
+// POST /api/member/review/:trainerId — submit or update a review for a trainer
 router.post('/review/:trainerId', async (req, res) => {
     try {
         const userId = req.user.id;
@@ -207,18 +230,35 @@ router.post('/review/:trainerId', async (req, res) => {
         const member = await prisma.member.findUnique({ where: { userId } });
         if (!member) return res.status(404).json({ message: 'Member not found' });
 
-        // Verify this is the member's trainer or they are allowed to review
-        // For now, let's allow any member to review any trainer they see
-        const review = await prisma.trainerReview.create({
-            data: {
-                memberId: member.id,
-                trainerId,
-                rating: parseInt(rating) || 5,
-                comment
-            }
+        // Check if review already exists
+        const existing = await prisma.trainerReview.findFirst({
+            where: { memberId: member.id, trainerId }
         });
 
-        res.status(201).json({ review, message: 'Review submitted! Thank you.' });
+        let review;
+        if (existing) {
+            review = await prisma.trainerReview.update({
+                where: { id: existing.id },
+                data: {
+                    rating: parseInt(rating) || 5,
+                    comment
+                }
+            });
+        } else {
+            review = await prisma.trainerReview.create({
+                data: {
+                    memberId: member.id,
+                    trainerId,
+                    rating: parseInt(rating) || 5,
+                    comment
+                }
+            });
+        }
+
+        res.status(existing ? 200 : 201).json({
+            review,
+            message: existing ? 'Review updated! Thank you.' : 'Review submitted! Thank you.'
+        });
     } catch (err) {
         console.error('Submit review error:', err);
         res.status(500).json({ message: 'Failed to submit review' });
