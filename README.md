@@ -558,26 +558,11 @@ To get the entire stack operating, you must configure local environments correct
 - **Database**: A running PostgreSQL instance. We recommend Neon.tech or Supabase for local dev.
 - **API Keys**: You MUST generate a free API key from [Google AI Studio](https://aistudio.google.com/) for Gemini access.
 
-### 2. Mandatory Environment Mapping
-**On backend (`/server/.env`):**
-| Variable | Value | Purpose |
-|----------|-------|---------|
-| `PORT` | `5000` | The express listener port. |
-| `DATABASE_URL` | `postgresql://...` | Connection string for Prisma matching your local PostgreSQL. |
-| `JWT_SECRET` | `alphanumeric string` | The salt used to sign authentication tokens. MUST be complex. |
-| `GEMINI_API_KEY` | `AIzaSy...` | Authorizes the core intelligent operations behind Workout/Diet pipelines. |
-| `CLIENT_URL` | `http://localhost:5173` | Allowed CORS origin. Usually Vite's default. |
 
-**On frontend (`/client/.env`):**
-| Variable | Value | Purpose |
-|----------|-------|---------|
-| `VITE_API_URL` | `http://localhost:5000/api` | The target for all Axios requests. |
-| `VITE_SOCKET_URL` | `http://localhost:5000` | The target for Kiosk live Websocket binding. |
-
-### 3. Step-by-Step Initialization Sequence
+### 2. Step-by-Step Initialization Sequence
 Open Terminal 1 (Database & Backend Engine):
 ```bash
-git clone https://github.com/Ridham2808/Atlyss.git
+git clone https://github.com/YASAR300/Atlyss.git
 cd Atlyss/server
 
 npm install              # Ingest server dependencies
@@ -593,7 +578,7 @@ npm install              # Ingest Vite/React dependencies
 npm run dev              # Launch HMR server on PORT 5173
 ```
 
-### 4. Common Troubleshooting / FAQ
+### 3. Common Troubleshooting / FAQ
 **Q: "Prisma Client Validation Error: Role not found"**
 *A: Ensure your PostgreSQL ENUMs matched during `db push`. You may need to manually seed the database using `npx prisma db seed`.*
 
