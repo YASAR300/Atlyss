@@ -105,6 +105,37 @@ router.get('/members', async (req, res) => {
     }
 });
 
+// ─── GET Kiosk Users (Members + Trainers) ───────────────────────────────────
+router.get('/kiosk-users', async (req, res) => {
+    try {
+        const [members, trainers] = await Promise.all([
+            prisma.user.findMany({
+                where: { role: 'member' },
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    member: { select: { memberNo: true } }
+                }
+            }),
+            prisma.user.findMany({
+                where: { role: 'trainer' },
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    trainer: { select: { mobile: true } }
+                }
+            })
+        ]);
+
+        res.json({ members, trainers });
+    } catch (err) {
+        console.error('Kiosk users error:', err);
+        res.status(500).json({ message: 'Failed to fetch kiosk users' });
+    }
+});
+
 // ─── GET Single Member ────────────────────────────────────────────────────────
 router.get('/members/:id', async (req, res) => {
     try {

@@ -1,8 +1,11 @@
 import React from 'react';
 import DashboardShell from '../components/layout/DashboardShell';
 import AttendanceCalendar from '../components/attendance/AttendanceCalendar';
+import { useAuth } from '../context/AuthContext';
 
 const AttendancePage = () => {
+    const { user } = useAuth();
+
     return (
         <DashboardShell title="Attendance">
             <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
@@ -15,7 +18,7 @@ const AttendancePage = () => {
                     </p>
                 </div>
 
-                <AttendanceCalendar />
+                <AttendanceCalendar userId={user?.id} />
             </div>
         </DashboardShell>
     );

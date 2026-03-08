@@ -22,23 +22,23 @@ const T = {
 const AttendanceKiosk = () => {
     const videoRef = useRef(null);
     const [stream, setStream] = useState(null);
-    const [members, setMembers] = useState([]);
+    const [users, setUsers] = useState({ members: [], trainers: [] });
     const [selectedUserId, setSelectedUserId] = useState('');
     const [processing, setProcessing] = useState(false);
     const [lastCheckin, setLastCheckin] = useState(null);
     const [mode, setMode] = useState('idle'); // idle, scanning, success
 
     useEffect(() => {
-        fetchMembers();
+        fetchUsers();
         return () => stopCamera();
     }, []);
 
-    const fetchMembers = async () => {
+    const fetchUsers = async () => {
         try {
-            const res = await api.get('/admin/members?limit=100');
-            setMembers(res.data.members || []);
+            const res = await api.get('/admin/kiosk-users');
+            setUsers(res.data);
         } catch (err) {
-            console.error('Failed to fetch members for simulation', err);
+            console.error('Failed to fetch users for simulation', err);
         }
     };
 
@@ -166,10 +166,17 @@ const AttendanceKiosk = () => {
                                 onChange={e => setSelectedUserId(e.target.value)}
                                 style={{ width: '100%', background: '#000', border: '1px solid #333', color: '#fff', padding: 10, borderRadius: 4, fontSize: '0.75rem', outline: 'none' }}
                             >
-                                <option value="">Select Member...</option>
-                                {members.map(m => (
-                                    <option key={m.id} value={m.id}>{m.name} ({m.member?.memberNo || m.email})</option>
-                                ))}
+                                <option value="">Select User...</option>
+                                <optgroup label="Members">
+                                    {users.members.map(m => (
+                                        <option key={m.id} value={m.id}>{m.name} ({m.member?.memberNo || m.email})</option>
+                                    ))}
+                                </optgroup>
+                                <optgroup label="Trainers">
+                                    {users.trainers.map(t => (
+                                        <option key={t.id} value={t.id}>{t.name} (TRAINER)</option>
+                                    ))}
+                                </optgroup>
                             </select>
                         </div>
 

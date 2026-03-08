@@ -20,7 +20,6 @@ const roleLinks = {
     ],
     trainer: [
         { name: 'Dashboard', path: '/dashboard/trainer', icon: HomeIcon },
-        { name: 'Attendance', path: '/attendance', icon: FingerPrintIcon },
         { name: 'Members', path: '/members', icon: UsersIcon },
         { name: 'Classes', path: '/classes', icon: CalendarIcon },
         { name: 'Review Plans', path: '/manage-workouts', icon: ClipboardDocumentListIcon },
