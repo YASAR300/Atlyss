@@ -11,6 +11,7 @@ import TrainerDashboard from './pages/trainer/TrainerDashboard';
 import MemberDashboard from './pages/member/MemberDashboard';
 import Members from './pages/admin/Members';
 import Trainers from './pages/admin/Trainers';
+import AttendanceManagement from './pages/admin/AttendanceManagement';
 import Classes from './pages/Classes';
 import Workouts from './pages/Workouts';
 import ManageWorkouts from './pages/trainer/ManageWorkouts';
@@ -21,6 +22,7 @@ import MyMeasurements from './pages/member/MyMeasurements';
 import MemberProfile from './pages/member/MemberProfile';
 import MemberProgress from './pages/member/MemberProgress';
 import AdminProfile from './pages/admin/AdminProfile';
+import AttendancePage from './pages/AttendancePage';
 
 const ProfileRedirect = () => {
   const { user } = useAuth();
@@ -29,6 +31,8 @@ const ProfileRedirect = () => {
   if (user.role === 'trainer') return <Navigate to="/trainer/profile" replace />;
   return <Navigate to="/member/profile" replace />;
 };
+
+import AttendanceKiosk from './pages/AttendanceKiosk';
 
 function App() {
   return (
@@ -52,6 +56,7 @@ function App() {
           {/* Public */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/attendance-kiosk" element={<AttendanceKiosk />} />
 
           {/* Admin */}
           <Route path="/dashboard/admin" element={
@@ -67,6 +72,11 @@ function App() {
           <Route path="/members" element={
             <ProtectedRoute roles={['admin', 'trainer']}>
               <Members />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/attendance" element={
+            <ProtectedRoute roles={['admin']}>
+              <AttendanceManagement />
             </ProtectedRoute>
           } />
           <Route path="/trainers" element={
@@ -138,6 +148,11 @@ function App() {
           <Route path="/classes" element={
             <ProtectedRoute>
               <Classes />
+            </ProtectedRoute>
+          } />
+          <Route path="/attendance" element={
+            <ProtectedRoute>
+              <AttendancePage />
             </ProtectedRoute>
           } />
           <Route path="/workouts" element={

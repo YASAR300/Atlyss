@@ -8,6 +8,7 @@ import {
     Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip
 } from 'chart.js';
 import { ClipboardDocumentListIcon, CalendarIcon, CheckCircleIcon, FireIcon } from '@heroicons/react/24/outline';
+import AttendanceCalendar from '../../components/attendance/AttendanceCalendar';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip);
 
@@ -56,7 +57,7 @@ export default function MemberDashboard() {
     const last7Labels = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return d.toLocaleDateString('en-US', { weekday: 'short' }); });
     const attendanceCounts = last7Labels.map((_, i) => {
         const d = new Date(); d.setDate(d.getDate() - (6 - i));
-        return attendance.filter(a => new Date(a.checkinTime).toDateString() === d.toDateString()).length;
+        return attendance.filter(a => new Date(a.checkInTime || a.checkinTime).toDateString() === d.toDateString()).length;
     });
 
     const chartData = {
@@ -198,9 +199,9 @@ export default function MemberDashboard() {
 
                     {/* Side column */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        {/* Chart */}
+                        {/* Chart (Optional/Legacy) */}
                         <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 18 }}>
-                            <span className="section-title" style={{ display: 'block', marginBottom: 14 }}>Attendance</span>
+                            <span className="section-title" style={{ display: 'block', marginBottom: 14 }}>7-Day Activity</span>
                             <Bar data={chartData} options={chartOpts} height={130} />
                         </div>
 

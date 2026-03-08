@@ -104,7 +104,7 @@ router.get('/attendance', async (req, res) => {
         if (!member) return res.status(404).json({ message: 'Member not found' });
 
         const attendance = await prisma.attendance.findMany({
-            where: { memberId: member.id },
+            where: { userId: userId },
             include: {
                 class: {
                     include: {
@@ -114,7 +114,7 @@ router.get('/attendance', async (req, res) => {
                     }
                 }
             },
-            orderBy: { checkinTime: 'desc' },
+            orderBy: { checkInTime: 'desc' },
             take: 30
         });
 
@@ -138,7 +138,7 @@ router.get('/classes', async (req, res) => {
                 },
                 _count: { select: { attendance: true } },
                 attendance: {
-                    where: { memberId: member?.id || 0 },
+                    where: { userId: userId || 0 },
                     select: { id: true }
                 }
             },
@@ -169,7 +169,7 @@ router.post('/classes/:id/book', async (req, res) => {
 
         // Check if already booked
         const existing = await prisma.attendance.findFirst({
-            where: { memberId: member.id, classId }
+            where: { userId: userId, classId }
         });
         if (existing) return res.status(400).json({ message: 'Already booked this class' });
 
@@ -184,7 +184,12 @@ router.post('/classes/:id/book', async (req, res) => {
         }
 
         const attendance = await prisma.attendance.create({
-            data: { memberId: member.id, classId }
+            data: {
+                userId: userId,
+                classId,
+                status: 'PRESENT',
+                method: 'MANUAL_ADMIN' // Using a placeholder that exists in enum
+            }
         });
 
         // Update lastAttendance on member

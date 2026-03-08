@@ -22,8 +22,41 @@ model User {
   password  String
   role      Role     @default(member)
   createdAt DateTime @default(now())
-  member    Member?
-  trainer   Trainer?
+
+  member     Member?
+  trainer    Trainer?
+  attendance Attendance[]
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+}
+
+enum AttendanceMethod {
+  SENSOR_FACE
+  SENSOR_QR
+  SENSOR_RFID
+  MANUAL_TRAINER
+  MANUAL_ADMIN
+}
+
+model Attendance {
+  id           Int              @id @default(autoincrement())
+  userId       Int
+  classId      Int?
+  status       AttendanceStatus
+  method       AttendanceMethod
+  checkInTime  DateTime         @default(now())
+  checkOutTime DateTime?
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class Class? @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([classId])
+  @@index([checkInTime])
+  @@index([status])
 }
 
 model Member {
@@ -64,7 +97,6 @@ model Member {
   trainer          Trainer?           @relation(fields: [trainerId], references: [id], onDelete: SetNull)
   workoutRequests  WorkoutRequest[]
   workoutPlans     WorkoutPlan[]
-  attendance       Attendance[]
   measurements     BodyMeasurement[]
   reviews          TrainerReview[]
 
@@ -245,15 +277,3 @@ model Class {
   attendance   Attendance[]
 }
 
-model Attendance {
-  id          Int      @id @default(autoincrement())
-  memberId    Int
-  classId     Int
-  checkinTime DateTime @default(now())
-  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
-
-  @@index([memberId])
-  @@index([classId])
-  @@index([checkinTime])
-}

@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardShell from '../../components/layout/DashboardShell';
 import api from '../../utils/api';
-import { UsersIcon, ClipboardDocumentListIcon, SparklesIcon, ClockIcon, CheckCircleIcon, ScaleIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { UsersIcon, ClipboardDocumentListIcon, SparklesIcon, ClockIcon, CheckCircleIcon, ScaleIcon, ChartBarIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
+import AttendanceCalendar from '../../components/attendance/AttendanceCalendar';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -26,6 +27,10 @@ export default function TrainerDashboard() {
     const [activeDay, setActiveDay] = useState('Monday');
     const [mounted, setMounted] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+    const [attendanceData, setAttendanceData] = useState([]);
+    const [savingAttendance, setSavingAttendance] = useState(false);
+    const [showMemberAttendance, setShowMemberAttendance] = useState(false);
 
     useEffect(() => { setTimeout(() => setMounted(true), 80); }, []);
 
@@ -74,6 +79,36 @@ export default function TrainerDashboard() {
 
     const todayExercises = plansByDay[activeDay] || [];
 
+    const openAttendanceModal = () => {
+        setAttendanceData(members.map(m => ({
+            userId: m.userId,
+            name: m.user?.name || m.name,
+            status: 'PRESENT'
+        })));
+        setShowAttendanceModal(true);
+    };
+
+    const toggleStatus = (userId) => {
+        setAttendanceData(prev => prev.map(item =>
+            item.userId === userId
+                ? { ...item, status: item.status === 'PRESENT' ? 'ABSENT' : 'PRESENT' }
+                : item
+        ));
+    };
+
+    const submitAttendance = async () => {
+        setSavingAttendance(true);
+        try {
+            await api.post('/trainer/attendance/bulk', { attendance: attendanceData });
+            toast.success('Attendance recorded successfully');
+            setShowAttendanceModal(false);
+        } catch (err) {
+            toast.error('Failed to record attendance');
+        } finally {
+            setSavingAttendance(false);
+        }
+    };
+
     return (
         <DashboardShell title="Trainer">
             <style>{`
@@ -88,10 +123,19 @@ export default function TrainerDashboard() {
             <div className={`t-fade${mounted ? ' in' : ''}`}>
 
                 {/* ── Header ── */}
-                <div style={{ marginBottom: 28 }}>
-                    <div style={{ fontFamily: T.mono, fontSize: '0.52rem', color: T.acc, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 6 }}>// trainer portal</div>
-                    <h1 style={{ fontFamily: T.disp, fontSize: '2.4rem', color: T.hi, letterSpacing: '0.04em', lineHeight: 1 }}>Trainer Hub</h1>
-                    <p style={{ fontFamily: T.mono, fontSize: '0.65rem', color: T.muted, marginTop: 6 }}>Manage member workout plans and pending approvals</p>
+                <div style={{ marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                        <div style={{ fontFamily: T.mono, fontSize: '0.52rem', color: T.acc, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 6 }}>// trainer portal</div>
+                        <h1 style={{ fontFamily: T.disp, fontSize: '2.4rem', color: T.hi, letterSpacing: '0.04em', lineHeight: 1 }}>Trainer Hub</h1>
+                        <p style={{ fontFamily: T.mono, fontSize: '0.65rem', color: T.muted, marginTop: 6 }}>Manage member workout plans and pending approvals</p>
+                    </div>
+                    <button
+                        onClick={openAttendanceModal}
+                        style={{ background: T.acc, color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 6, fontFamily: T.mono, fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, boxShadow: `0 4px 15px ${T.acc}33` }}
+                    >
+                        <CheckCircleIcon style={{ width: 18 }} />
+                        FILL ATTENDANCE
+                    </button>
                 </div>
 
                 {/* ── Stats ── */}
@@ -218,6 +262,13 @@ export default function TrainerDashboard() {
                                         </button>
                                     )}
                                     <button
+                                        onClick={() => setShowMemberAttendance(true)}
+                                        style={{ background: 'rgba(77,168,112,0.09)', border: `1px solid rgba(77,168,112,0.22)`, borderRadius: 6, padding: '8px 18px', fontFamily: T.mono, fontSize: '0.7rem', fontWeight: 700, color: T.green, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+                                    >
+                                        <CalendarDaysIcon style={{ width: 16 }} />
+                                        ATTENDANCE
+                                    </button>
+                                    <button
                                         onClick={() => navigate(`/trainer/members/${selected.id}/measurements`)}
                                         style={{ background: T.accDim, border: `1px solid ${T.accBorder}`, borderRadius: 6, padding: '8px 18px', fontFamily: T.mono, fontSize: '0.7rem', fontWeight: 700, color: T.acc, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
                                     >
@@ -297,6 +348,79 @@ export default function TrainerDashboard() {
                     </div>
                 </div>
             </div>
+
+            {/* Attendance Modal */}
+            {showAttendanceModal && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}>
+                    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, width: '100%', maxWidth: 500, padding: 30, animation: 'modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                        <div style={{ marginBottom: 20 }}>
+                            <h2 style={{ fontFamily: T.disp, fontSize: '2rem', color: T.hi, letterSpacing: '0.04em' }}>Daily Attendance</h2>
+                            <p style={{ fontFamily: T.mono, fontSize: '0.65rem', color: T.muted }}>Mark status for your assigned members ({new Date().toLocaleDateString()})</p>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 400, overflowY: 'auto', paddingRight: 10, marginBottom: 25 }}>
+                            {attendanceData.map(item => (
+                                <div key={item.userId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}`, borderRadius: 10 }}>
+                                    <div style={{ fontSize: '0.9rem', color: T.hi, fontWeight: 500 }}>{item.name}</div>
+                                    <button
+                                        onClick={() => toggleStatus(item.userId)}
+                                        style={{
+                                            border: 'none', padding: '6px 16px', borderRadius: 20, cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', fontWeight: 700,
+                                            background: item.status === 'PRESENT' ? T.greenDim : '#ef444422',
+                                            color: item.status === 'PRESENT' ? T.green : '#ef4444',
+                                            border: `1px solid ${item.status === 'PRESENT' ? T.greenBorder : '#ef444444'}`,
+                                            transition: 'all 0.15s'
+                                        }}
+                                    >
+                                        {item.status}
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 12 }}>
+                            <button
+                                onClick={() => setShowAttendanceModal(false)}
+                                style={{ flex: 1, background: 'transparent', border: `1px solid ${T.border}`, color: T.muted, padding: '12px', borderRadius: 8, cursor: 'pointer', fontFamily: T.mono, fontSize: '0.75rem' }}
+                            >
+                                CANCEL
+                            </button>
+                            <button
+                                disabled={savingAttendance}
+                                onClick={submitAttendance}
+                                style={{ flex: 2, background: T.acc, border: 'none', color: '#fff', padding: '12px', borderRadius: 8, cursor: 'pointer', fontFamily: T.mono, fontSize: '0.75rem', fontWeight: 700 }}
+                            >
+                                {savingAttendance ? 'SAVING...' : 'SAVE ATTENDANCE'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Member Attendance Modal */}
+            {showMemberAttendance && selected && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}>
+                    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, width: '100%', maxWidth: 500, padding: 30 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                            <div>
+                                <h1 style={{ fontFamily: T.disp, fontSize: '2rem', color: T.hi, letterSpacing: '0.04em' }}>Member Attendance</h1>
+                                <p style={{ fontFamily: T.mono, fontSize: '0.65rem', color: T.muted }}>{selected.user?.name}'s consistency track</p>
+                            </div>
+                            <button onClick={() => setShowMemberAttendance(false)} style={{ background: 'transparent', border: 'none', color: T.muted, cursor: 'pointer' }}>
+                                <XMarkIcon style={{ width: 24 }} />
+                            </button>
+                        </div>
+                        <AttendanceCalendar userId={selected.userId} />
+                    </div>
+                </div>
+            )}
+
+            <style>{`
+                @keyframes modalIn {
+                    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+                    to { opacity: 1; transform: translateY(0) scale(1); }
+                }
+            `}</style>
         </DashboardShell >
     );
 }

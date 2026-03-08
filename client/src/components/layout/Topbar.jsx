@@ -5,7 +5,7 @@ import {
     HomeIcon, UsersIcon, AcademicCapIcon,
     ClipboardDocumentListIcon, CalendarIcon,
     ArrowLeftOnRectangleIcon, ChartBarIcon,
-    Bars3Icon, XMarkIcon, UserCircleIcon, Cog6ToothIcon,
+    Bars3Icon, XMarkIcon, UserCircleIcon, Cog6ToothIcon, FingerPrintIcon
 } from '@heroicons/react/24/outline';
 import logo from '../../assets/logo.png';
 
@@ -23,6 +23,7 @@ const roleLinks = {
     ],
     member: [
         { name: 'Dashboard', path: '/dashboard/member', icon: HomeIcon },
+        { name: 'Attendance', path: '/attendance', icon: FingerPrintIcon },
         { name: 'Workouts', path: '/workouts', icon: ClipboardDocumentListIcon },
         { name: 'Classes', path: '/classes', icon: CalendarIcon },
         { name: 'Progress', path: '/progress', icon: ChartBarIcon },

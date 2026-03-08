@@ -322,4 +322,68 @@ router.delete('/members/:memberId/measurements/:id', async (req, res) => {
     }
 });
 
+// POST /api/trainer/attendance/bulk — Fill attendance for assigned members
+router.post('/attendance/bulk', async (req, res) => {
+    try {
+        const { attendance } = req.body; // Array of { userId, status, classId? }
+        if (!Array.isArray(attendance)) return res.status(400).json({ message: 'Attendance array is required' });
+
+        const trainer = await prisma.trainer.findUnique({ where: { userId: req.user.id } });
+        if (!trainer) return res.status(404).json({ message: 'Trainer not found' });
+
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const results = [];
+        for (const item of attendance) {
+            const { userId, status, classId } = item;
+            if (!userId || !status) continue;
+
+            const existing = await prisma.attendance.findFirst({
+                where: {
+                    userId: parseInt(userId),
+                    classId: classId ? parseInt(classId) : null,
+                    checkInTime: { gte: startOfDay, lte: endOfDay }
+                }
+            });
+
+            if (existing) {
+                const updated = await prisma.attendance.update({
+                    where: { id: existing.id },
+                    data: { status, method: 'MANUAL_TRAINER' }
+                });
+                results.push(updated);
+            } else {
+                const created = await prisma.attendance.create({
+                    data: {
+                        userId: parseInt(userId),
+                        status: status,
+                        method: 'MANUAL_TRAINER',
+                        classId: classId ? parseInt(classId) : null,
+                        checkInTime: new Date()
+                    }
+                });
+                results.push(created);
+            }
+        }
+
+        // Emit real-time update
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('attendance:bulk_update', {
+                trainerId: trainer.id,
+                trainerName: req.user.name,
+                count: results.length
+            });
+        }
+
+        res.json({ message: 'Attendance recorded successfully', count: results.length });
+    } catch (err) {
+        console.error('Bulk attendance error:', err);
+        res.status(500).json({ message: 'Failed to record bulk attendance' });
+    }
+});
+
 module.exports = router;

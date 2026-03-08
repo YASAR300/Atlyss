@@ -4,13 +4,15 @@ import { useAuth } from '../../context/AuthContext';
 import {
     HomeIcon, UsersIcon, AcademicCapIcon,
     ClipboardDocumentListIcon, CalendarIcon,
-    ArrowLeftOnRectangleIcon, ChartBarIcon, UserCircleIcon, ScaleIcon
+    ArrowLeftOnRectangleIcon, ChartBarIcon, UserCircleIcon, ScaleIcon,
+    FingerPrintIcon
 } from '@heroicons/react/24/outline';
 import logo from '../../assets/logo.png';
 
 const roleLinks = {
     admin: [
         { name: 'Dashboard', path: '/dashboard/admin', icon: HomeIcon },
+        { name: 'Attendance', path: '/attendance', icon: FingerPrintIcon },
         { name: 'Members', path: '/members', icon: UsersIcon },
         { name: 'Classes', path: '/classes', icon: CalendarIcon },
         { name: 'Trainers', path: '/trainers', icon: AcademicCapIcon },
@@ -18,6 +20,7 @@ const roleLinks = {
     ],
     trainer: [
         { name: 'Dashboard', path: '/dashboard/trainer', icon: HomeIcon },
+        { name: 'Attendance', path: '/attendance', icon: FingerPrintIcon },
         { name: 'Members', path: '/members', icon: UsersIcon },
         { name: 'Classes', path: '/classes', icon: CalendarIcon },
         { name: 'Review Plans', path: '/manage-workouts', icon: ClipboardDocumentListIcon },

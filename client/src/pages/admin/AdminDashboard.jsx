@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardShell from '../../components/layout/DashboardShell';
 import api from '../../utils/api';
 import { io } from 'socket.io-client';
@@ -204,6 +205,7 @@ const BtnDanger = ({ style, children, ...props }) => (
    MAIN COMPONENT
 ══════════════════════════════════════════ */
 export default function AdminDashboard() {
+    const navigate = useNavigate();
     const [stats, setStats] = useState(null);
     const [members, setMembers] = useState([]);
     const [trainers, setTrainers] = useState([]);
@@ -314,6 +316,7 @@ export default function AdminDashboard() {
                         <p style={{ fontFamily: T.mono, fontSize: '0.62rem', color: T.muted, marginTop: 5 }}>full visibility over members, trainers &amp; operations</p>
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                        <BtnSecondary onClick={() => navigate('/attendance-kiosk')}>Kiosk Mode</BtnSecondary>
                         <BtnSecondary onClick={() => setShowTrainerModal(true)}>+ trainer</BtnSecondary>
                         <BtnPrimary onClick={() => setShowMemberModal(true)}>+ member</BtnPrimary>
                     </div>
@@ -444,6 +447,7 @@ export default function AdminDashboard() {
                         <div className="live-dot" />
                         <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '1.1rem', letterSpacing: '0.06em', color: '#fff' }}>Live Check-ins</span>
                         <span style={{ fontSize: '0.65rem', color: T.faint, marginLeft: 4 }}>Real-time attendance feed</span>
+                        <BtnSecondary onClick={() => navigate('/admin/attendance')} style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: '0.6rem' }}>View History</BtnSecondary>
                     </div>
                     <div style={{ padding: '12px 16px' }}>
                         {live.length === 0 ? (
@@ -463,7 +467,7 @@ export default function AdminDashboard() {
                                                 {a.class?.className || 'General Access'}
                                             </div>
                                             <div style={{ fontSize: '0.6rem', color: T.faint, marginTop: 2 }}>
-                                                {new Date(a.checkinTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                {new Date(a.checkInTime || a.checkinTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </div>
                                         </div>
                                     </div>
