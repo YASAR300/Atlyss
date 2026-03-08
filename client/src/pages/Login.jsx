@@ -129,15 +129,6 @@ const Login = () => {
     }
   };
 
-  const fillDemo = (role) => {
-    const creds = {
-      admin: { email: 'admin@atlyss.com', password: 'Admin@123' },
-      trainer: { email: 'jake@atlyss.com', password: 'Trainer@123' },
-      member: { email: 'john@atlyss.com', password: 'Member@123' },
-    };
-    setEmail(creds[role].email);
-    setPassword(creds[role].password);
-  };
 
   return (
     <>
@@ -763,25 +754,6 @@ const Login = () => {
               </button>
             </form>
 
-            {/* Demo Quick Access */}
-            <div className="pg-divider">
-              <div className="pg-divider-line" />
-              <span className="pg-divider-text">Quick Demo Access</span>
-              <div className="pg-divider-line" />
-            </div>
-
-            <div className="pg-demo-grid">
-              {[
-                { role: 'admin', sub: 'Full Control' },
-                { role: 'trainer', sub: 'Manage Classes' },
-                { role: 'member', sub: 'My Workouts' },
-              ].map(({ role, sub }) => (
-                <button key={role} className="pg-demo-btn" onClick={() => fillDemo(role)}>
-                  {role}
-                  <span className="pg-demo-badge">{sub}</span>
-                </button>
-              ))}
-            </div>
 
             <p className="pg-footer">
               New here?{' '}
