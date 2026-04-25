@@ -33,16 +33,7 @@
 
 ---
 
-## 👥 TEAM MEMBERS
 
-| ID | Name            | Role                |
-|----|-----------------|---------------------|
-| 01 | Ridham Patel   | Full Stack Developer |
-| 02 | Yasar Khan      | Full Stack Developer |
-| 03 | Aditya Raulji    | Frontend Developer  |
-| 04 | Rijans Patoliya | Backend Developer   |
-
----
 
 ## 📖 Table of Contents
 
